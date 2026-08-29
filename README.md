@@ -1,9 +1,72 @@
 # BUKIT KEPONG — 23 FEBRUARY 1950
 
-A top-down 2D browser game: defend the Bukit Kepong police station.
+A top-down 2D browser game: defend the Bukit Kepong police station through a
+pre-dawn assault. Vanilla HTML5 / CSS3 / JavaScript on a Canvas — no build step,
+no dependencies, no external assets.
 
-Vanilla HTML5 / CSS3 / JavaScript + Canvas. No build system, no dependencies.
-Open `index.html` in a browser to play.
+> **This is a dramatised interactive interpretation of a historical event, not a
+> documentary reconstruction.** The map, the characters, the wave structure and
+> every statistic in it are gameplay inventions. See [HISTORY.md](HISTORY.md)
+> for the historical note and a full list of the abstractions.
 
-> This game is a dramatised interactive interpretation of a historical event,
-> not a documentary reconstruction. See HISTORY.md.
+## Running it
+
+Open `index.html` in any modern browser. That's the whole install.
+
+Sound is synthesised at runtime with the Web Audio API, so browsers will hold it
+until your first click — press START and audio begins.
+
+## Controls
+
+| Key | Action |
+| --- | --- |
+| `W A S D` / arrows | Move |
+| Mouse | Aim |
+| Left click | Fire the Sten gun |
+| `R` | Reload |
+| `SPACE` | Beat out a fire (stand at the flames) |
+| `ESC` / `P` | Pause |
+| `M` | Mute |
+
+## The mission
+
+Hold the station for five minutes against eight waves of communist insurgents.
+
+- The **station has its own structural integrity**. If it reaches zero, the
+  position is lost — the timer does not save you.
+- **Six constables** hold the sandbag posts at the gates. They shoot, they take
+  casualties, and they cannot be replaced.
+- Attackers who reach the walls will **set the building alight**. A fire burns
+  the station down until somebody puts it out. That somebody is you, and doing
+  it means leaving the firing line.
+- Riflemen fire from cover, rushers cut the wire and close to hand, marksmen
+  shoot from the treeline. Pressure rises through numbers, attack directions and
+  behaviour — not through inflated hit points.
+
+## Layout
+
+```
+index.html      markup + HUD
+style.css       presentation
+game.js         game loop, state machine, wave director, render pipeline
+src/core.js     config, maths, input, camera
+src/world.js    map layout, terrain pre-render, collision, cover
+src/entities.js bullets, figure renderer, Player / Police / Enemy
+src/fx.js       pooled particles, decals, lighting flashes
+src/audio.js    Web Audio synthesis
+src/ui.js       DOM HUD, screens, minimap
+tools/          headless dev tools (not part of the game)
+```
+
+## Dev tools
+
+`tools/` loads the game in Node behind stub Canvas/DOM objects so it can be run
+without a browser. It is not shipped with the game.
+
+```sh
+node tools/smoke.js        # exercises every system, screen and the render path
+node tools/balance.js 8    # runs mission soaks and reports the difficulty curve
+```
+
+Key balance constants live in `src/core.js` (`CFG`) and the `WAVES` table at the
+top of `game.js`. To play a longer mission, raise `CFG.MISSION_DURATION`.

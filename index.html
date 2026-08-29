@@ -19,7 +19,7 @@
   </div>
 
   <div class="hud-corner tc">
-    <div id="txt-time" class="hud-time">6:00</div>
+    <div id="txt-time" class="hud-time">5:00</div>
     <div class="hud-sub"><span id="txt-wave">STAND TO</span> &nbsp;·&nbsp; <span id="txt-enemies">0 HOSTILES</span></div>
   </div>
 
@@ -32,12 +32,17 @@
     <div class="meter">
       <span class="hud-label">HEALTH</span>
       <div class="bar-track"><div id="bar-health" class="bar-fill health"></div></div>
-      <span id="txt-health" class="meter-num">100</span>
+      <span id="txt-health" class="meter-num">150</span>
     </div>
     <div class="meter">
       <span class="hud-label">STATION</span>
       <div class="bar-track"><div id="bar-station" class="bar-fill station"></div></div>
       <span id="txt-station" class="meter-num">100%</span>
+    </div>
+    <div class="meter">
+      <span class="hud-label">SECTION</span>
+      <div id="section-pips" class="pips"></div>
+      <span id="txt-section" class="meter-num">6/6</span>
     </div>
   </div>
 
@@ -77,16 +82,20 @@
       <li><b>Mouse</b><span>Aim</span></li>
       <li><b>Left Click</b><span>Fire the Sten gun</span></li>
       <li><b>R</b><span>Reload</span></li>
+      <li><b>SPACE</b><span>Beat out fires (stand at the flames)</span></li>
       <li><b>ESC</b> / <b>P</b><span>Pause</span></li>
       <li><b>M</b><span>Mute sound</span></li>
     </ul>
     <div class="brief">
-      <p><b>Your orders.</b> Hold the station until first light. The building has its own
+      <p><b>Your orders.</b> Hold the station for five minutes, until first light. The building has its own
       structural integrity — if it is destroyed, the position is lost.</p>
       <p><b>Your section.</b> Constables hold the sandbag posts at each gate. They shoot,
       they take casualties, and they cannot be replaced. Support them.</p>
       <p><b>The enemy.</b> Communist insurgents advance in waves: riflemen fire from cover,
       rushers cut the wire and close to hand, marksmen shoot from the treeline.</p>
+      <p><b>Fire.</b> Attackers who reach the walls will try to set the attap alight. A fire
+      eats the station's integrity until it is put out — run to the flames and hold
+      <b>SPACE</b>. Leaving the firing line to do it is the hardest call you will make.</p>
     </div>
     <div class="btn-row"><button id="btn-howto-back" class="btn">BACK</button></div>
   </div>

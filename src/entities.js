@@ -15,19 +15,19 @@ const WEAPONS = {
   },
   lee: {                        // Lee-Enfield .303 bolt rifle — police
     name: 'LEE-ENFIELD', mag: 10, reserve: 999, reload: 2.6,
-    rps: 0.62, damage: 42, spread: 0.045, speed: 1400, recoil: 0, auto: false,
+    rps: 0.58, damage: 36, spread: 0.075, speed: 1400, recoil: 0, auto: false,
   },
   insurgentRifle: {
     name: 'RIFLE', mag: 5, reserve: 999, reload: 2.4,
-    rps: 0.55, damage: 11, spread: 0.085, speed: 1050, recoil: 0, auto: false,
+    rps: 0.70, damage: 10, spread: 0.075, speed: 1050, recoil: 0, auto: false,
   },
   insurgentSmg: {
     name: 'SMG', mag: 20, reserve: 999, reload: 2.8,
-    rps: 5.0, damage: 6, spread: 0.14, speed: 950, recoil: 0, auto: true,
+    rps: 5.5, damage: 5, spread: 0.13, speed: 950, recoil: 0, auto: true,
   },
   marksmanRifle: {
     name: 'SCOPED RIFLE', mag: 5, reserve: 999, reload: 3.0,
-    rps: 0.34, damage: 20, spread: 0.018, speed: 1500, recoil: 0, auto: false,
+    rps: 0.34, damage: 16, spread: 0.018, speed: 1500, recoil: 0, auto: false,
   },
 };
 
@@ -77,7 +77,11 @@ const Bullets = {
       }
       if (hitActor) {
         const ang = Math.atan2(b.vy, b.vx);
-        if (b.owner.isPlayer) game.stats.hits++;
+        if (b.owner.isPlayer) {
+          game.stats.hits++;
+          game.hitMarker = 0.22;
+          game.hitMarkerKill = hitActor.hp - b.dmg <= 0;
+        }
         hitActor.hurt(b.dmg, ang, b.owner, game);
         FX.blood(b.x, b.y, ang);
         Audio2.hitFlesh(b.x, b.y);
@@ -93,7 +97,7 @@ const Bullets = {
           if (segRect(b.px, b.py, b.x, b.y, bl)) {
             blocked = bl; kind = 'wood';
             // Only hostile fire damages the station's structure.
-            if (bl.kind === 'station' && !b.friendly) game.damageStation(b.dmg * 0.45, b.x, b.y);
+            if (bl.kind === 'station' && !b.friendly) game.damageStation(b.dmg * 0.5, b.x, b.y);
             break;
           }
         }
@@ -175,22 +179,33 @@ function drawFigure(ctx, a) {
   ctx.beginPath(); ctx.ellipse(0, 0, R * 0.95, R * 0.78, 0, 0, TAU); ctx.fill();
   ctx.fillStyle = 'rgba(255,255,255,0.10)';
   ctx.beginPath(); ctx.ellipse(R * 0.15, -R * 0.2, R * 0.6, R * 0.4, 0, 0, TAU); ctx.fill();
+  // Cool rim light keeps silhouettes readable against the dark treeline
+  ctx.strokeStyle = a.faction === 'police' ? 'rgba(198,214,236,0.34)' : 'rgba(228,168,120,0.30)';
+  ctx.lineWidth = 1.4;
+  ctx.beginPath(); ctx.ellipse(0, 0, R * 0.95, R * 0.78, 0, 0, TAU); ctx.stroke();
   if (p.webbing) {                                   // cross-strap / bandolier
     ctx.strokeStyle = p.webbing; ctx.lineWidth = R * 0.22;
     ctx.beginPath(); ctx.moveTo(-R * 0.5, -R * 0.55); ctx.lineTo(R * 0.35, R * 0.5); ctx.stroke();
   }
 
-  // Weapon + arms
+  // Weapon + arms. During a reload the muzzle drops and the magazine is swapped.
   const kick = a.recoil || 0;
+  const rl = a.reloading > 0 && a.weapon ? 1 - a.reloading / a.weapon.reload : -1;
   ctx.save();
   ctx.translate(-kick * 5, 0);
+  if (rl >= 0) {
+    const swing = Math.sin(rl * Math.PI);
+    ctx.rotate(swing * 0.55);
+    ctx.translate(-swing * R * 0.3, 0);
+  }
   ctx.fillStyle = '#2b2118';
   ctx.fillRect(R * 0.25, -R * 0.12, R * (a.weaponLen || 1.9), R * 0.24);      // barrel
   ctx.fillStyle = '#4a3a26';
   ctx.fillRect(-R * 0.15, -R * 0.16, R * 0.6, R * 0.32);                       // stock
   if (a.weaponKind === 'sten') {                                              // side magazine
+    const off = rl >= 0 ? Math.sin(rl * Math.PI) * R * 1.4 : 0;                // pulled clear
     ctx.fillStyle = '#3a3028';
-    ctx.fillRect(R * 0.5, -R * 0.95, R * 0.2, R * 0.8);
+    ctx.fillRect(R * 0.5, -R * 0.95 - off, R * 0.2, R * 0.8);
   }
   ctx.fillStyle = p.skin;
   ctx.beginPath(); ctx.arc(R * 0.55, -R * 0.42, R * 0.24, 0, TAU); ctx.fill();  // hands
@@ -336,7 +351,12 @@ class Player extends Actor {
   update(dt, game) {
     this.baseUpdate(dt);
     if (!this.alive) { this.dying = Math.max(0, this.dying - dt); return; }
+    // Wounds are dressed once you are out of contact for a few seconds. This
+    // keeps a bad exchange from ending the run outright.
     this.hurtCooldown = Math.max(0, this.hurtCooldown - dt);
+    if (this.hurtCooldown <= 0 && this.hp < this.maxHp) {
+      this.hp = Math.min(this.maxHp, this.hp + 7 * dt);
+    }
 
     /* --- movement --- */
     let mx = 0, my = 0;
@@ -385,8 +405,10 @@ class Player extends Actor {
   onReloadDone() { Audio2.reloadIn(); }
 
   onHurt(dmg, source, game) {
+    this.hurtCooldown = 4;
     game.camera.addShake(5);
     game.damageVignette = 1;
+    if (source && source !== this) game.addDamageArc(Math.atan2(source.y - this.y, source.x - this.x));
     Audio2.hurt();
   }
   onDeath(game) { game.onPlayerDown(); }
@@ -404,6 +426,7 @@ class Police extends Actor {
     this.target = null;
     this.aimTime = 0;
     this.scan = rand(0, TAU);
+    this.noContact = 0;
     this.palette = {
       shirt: '#6f6749', shorts: '#413c29', skin: '#96693f',
       hat: '#15151b', hatStyle: 'songkok', webbing: '#3a3526',
@@ -419,20 +442,40 @@ class Police extends Actor {
     for (const e of game.enemies) {
       if (!e.alive) continue;
       const d = dist(this.x, this.y, e.x, e.y);
-      if (d > 470) continue;
+      if (d > 410) continue;
       // Prioritise close targets and anyone already inside the wire.
       const score = d * (World.inCompound(e.x, e.y) ? 0.45 : 1);
       if (score < bs && World.lineOfSight(this.x, this.y, e.x, e.y)) { bs = score; best = e; }
     }
     this.target = best;
 
-    /* --- hold the post, shuffling slightly to stay behind cover --- */
-    const dp = dist(this.x, this.y, this.post.x, this.post.y);
+    /* --- hold the post, but do not ignore men inside the wire --- */
+    // With nothing to shoot, a constable will leave his sandbags to deal with
+    // anyone who has got into the compound — otherwise attackers can work on
+    // the station's blind side completely unopposed.
+    let anchor = this.post;
+    if (!best) {
+      this.noContact += dt;
+      if (this.noContact > 2.2) {
+        let intruder = null, bd2 = Infinity;
+        for (const e of game.enemies) {
+          if (!e.alive || !World.inCompound(e.x, e.y)) continue;
+          const d = dist(this.post.x, this.post.y, e.x, e.y);
+          if (d < bd2) { bd2 = d; intruder = e; }
+        }
+        if (intruder && bd2 < 330) anchor = intruder;      // leashed to the post
+      }
+    } else this.noContact = 0;
+
+    const dp = dist(this.x, this.y, anchor.x, anchor.y);
     this.moving = false;
-    if (dp > 26) {
-      const a = Math.atan2(this.post.y - this.y, this.post.x - this.x);
-      this.x += Math.cos(a) * 70 * dt; this.y += Math.sin(a) * 70 * dt;
+    const stopAt = anchor === this.post ? 26 : 200;         // engage, don't charge
+    if (dp > stopAt) {
+      const a = Math.atan2(anchor.y - this.y, anchor.x - this.x);
+      const sp = anchor === this.post ? 70 : 96;
+      this.x += Math.cos(a) * sp * dt; this.y += Math.sin(a) * sp * dt;
       this.moving = true; this.walk += dt * 8;
+      this.look = approachAngle(this.look, a, dt * 5);
     }
     World.collide(this, this.radius);
 
@@ -456,6 +499,9 @@ class Police extends Actor {
     }
   }
 
+  /** Incoming fire spoils a constable's aim — a simple suppression model. */
+  onHurt() { this.aimTime = -0.3; }
+
   onDeath(game) {
     game.onPoliceDown(this);
   }
@@ -468,7 +514,7 @@ const ENEMY_TYPES = {
     palette: { shirt: '#4a5236', shorts: '#39402b', skin: '#8a6039', hat: '#333a26', hatStyle: 'cap', star: true, webbing: '#2f3423' },
   },
   rusher: {
-    hp: 74, speed: 128, weapon: 'insurgentSmg', radius: 12, range: 170, melee: true,
+    hp: 80, speed: 136, weapon: 'insurgentSmg', radius: 12, range: 170, melee: true,
     palette: { shirt: '#57492f', shorts: '#3d3320', skin: '#8f6339', hat: '#1d1710', hatStyle: 'band', webbing: '#2c2418' },
   },
   marksman: {
@@ -496,8 +542,14 @@ class Enemy extends Actor {
     this.aimTime = 0;
     this.meleeCd = 0;
     this.accuracy = 0.55 + tier * 0.05;     // scales the spread applied to shots
+    // Most attackers who get inside go after the defenders first; a minority
+    // are set on burning the building whatever else is happening.
+    // Later waves are increasingly there to burn the station down rather
+    // than merely to trade fire with its defenders.
+    this.arsonist = chance((T.melee ? 0.40 : 0.18) + tier * 0.09);
     this.look = 0;
     this.entry = null;
+    this.stuckT = 0; this.stuck = 0; this.lastX = x; this.lastY = y;
   }
 
   /* ------------------------------------------------------------- AI ------ */
@@ -517,6 +569,66 @@ class Enemy extends Actor {
     }
 
     World.collide(this, this.radius, { ignoreFence: false });
+    this._unstick(dt);
+  }
+
+  /**
+   * Steering has no pathfinder, so an attacker can wedge itself against a wall
+   * or a fence corner. If one stops making progress while it thinks it is
+   * walking, flip its avoidance side, then abandon the plan outright — and cut
+   * whatever wire is pinning it.
+   */
+  _unstick(dt) {
+    this.stuckT += dt;
+    if (this.stuckT < 0.6) return;
+    const moved = dist(this.x, this.y, this.lastX, this.lastY);
+    this.stuckT = 0; this.lastX = this.x; this.lastY = this.y;
+
+    if (!this.moving || moved > 10) { this.stuck = 0; return; }
+
+    this.stuck++;
+    this._side = (this._side ?? 1) * -1;
+    if (this.stuck < 3) return;
+
+    this.stuck = 0;
+    if (this.cover) { this.cover.taken = null; this.cover = null; }
+    this.entry = null;
+    // Only an attacker who is actually trying to get through the wire cuts it.
+    // Otherwise this becomes free perimeter damage and the fence evaporates.
+    if (this.state !== 'breach') return;
+    const f = World.fenceAt(this.x + Math.cos(this.look) * (this.radius + 9),
+                            this.y + Math.sin(this.look) * (this.radius + 9), 16)
+           || World.fenceAt(this.x, this.y, this.radius + 16);
+    if (f) {
+      f.hp -= 20; f.hit = 0.2;
+      FX.impact(f.x + f.w / 2, f.y + f.h / 2, this.look, 'wood');
+      if (f.hp <= 0) { f.alive = false; FX.smoke(f.x + f.w / 2, f.y + f.h / 2, 2, '90,78,58'); }
+    }
+  }
+
+  /**
+   * Move toward a goal, routing around the station when it sits in the way.
+   * Single-step avoidance cannot get around a building that large on its own.
+   */
+  _navTo(tx, ty, dt, mul = 1) {
+    const S = World.station;
+    if (segRect(this.x, this.y, tx, ty, S)) {
+      const P = 34;
+      const corners = [
+        { x: S.x - P, y: S.y - P }, { x: S.x + S.w + P, y: S.y - P },
+        { x: S.x - P, y: S.y + S.h + P }, { x: S.x + S.w + P, y: S.y + S.h + P },
+      ];
+      let best = null, bs = Infinity;
+      for (const c of corners) {
+        const score = dist(this.x, this.y, c.x, c.y) + dist(c.x, c.y, tx, ty);
+        if (score < bs) { bs = score; best = c; }
+      }
+      if (best && dist(this.x, this.y, best.x, best.y) > 26) {
+        this._moveToward(best.x, best.y, dt, mul);
+        return;
+      }
+    }
+    this._moveToward(tx, ty, dt, mul);
   }
 
   /** Choose the best visible defender to engage. */
@@ -539,13 +651,13 @@ class Enemy extends Actor {
     if (best && this.state !== 'breach' && this.state !== 'assault') this.state = 'fight';
   }
 
-  _moveToward(tx, ty, dt, speedMul = 1) {
+  _moveToward(tx, ty, dt, speedMul = 1, direct = false) {
     const a = Math.atan2(ty - this.y, tx - this.x);
     const sp = this.speed * speedMul;
     // Cheap obstacle avoidance: if the direct path is blocked, try sidesteps.
     let ang = a;
     const probe = 34;
-    if (!this._clear(this.x + Math.cos(a) * probe, this.y + Math.sin(a) * probe)) {
+    if (!direct && !this._clear(this.x + Math.cos(a) * probe, this.y + Math.sin(a) * probe)) {
       const l = a - 0.85, r = a + 0.85;
       const okL = this._clear(this.x + Math.cos(l) * probe, this.y + Math.sin(l) * probe);
       const okR = this._clear(this.x + Math.cos(r) * probe, this.y + Math.sin(r) * probe);
@@ -562,6 +674,11 @@ class Enemy extends Actor {
     for (const b of World.buildings) if (x > b.x - 14 && x < b.x + b.w + 14 && y > b.y - 14 && y < b.y + b.h + 14) return false;
     for (const s of World.sandbags) if (x > s.x - 12 && x < s.x + s.w + 12 && y > s.y - 12 && y < s.y + s.h + 12) return false;
     for (const t of World.trees) if (dist2(x, y, t.x, t.y) < (t.r * 0.6 + 12) ** 2) return false;
+    // Live wire counts as an obstacle, so gate-seekers slide along it to the gap
+    for (const f of World.fences) {
+      if (!f.alive) continue;
+      if (x > f.x - 11 && x < f.x + f.w + 11 && y > f.y - 11 && y < f.y + f.h + 11) return false;
+    }
     if (x < World.river.w + 14) return false;
     return true;
   }
@@ -613,7 +730,7 @@ class Enemy extends Actor {
       this.look = approachAngle(this.look, want, dt * 4.2);
       this.aimTime += dt;
       if (this.aimTime > 0.4 && Math.abs(angDiff(this.look, want)) < 0.16) {
-        const spreadMul = 2.2 - this.accuracy;
+        const spreadMul = 1.6 - this.accuracy * 0.5;
         if (this.tryShoot(this.look, game, spreadMul)) Audio2.enemyShot(this.x, this.y);
       }
     } else {
@@ -634,18 +751,30 @@ class Enemy extends Actor {
     }
   }
 
+  /** Choose a way in: an open gate, or a panel of wire to cut through. */
+  _pickEntry() {
+    const gate = World.nearestEntry(this.x, this.y);
+    // Rushers habitually cut their own gap; riflemen usually use the gates.
+    if (chance(this.T.melee ? 0.5 : 0.15)) {
+      const f = World.nearestFence(this.x, this.y);
+      if (f) return { x: f.x + f.w / 2, y: f.y + f.h / 2, cut: true };
+    }
+    return gate || World.gates[0];
+  }
+
   /** Head for a gate or cut through the fence. */
   _breach(dt, game) {
-    if (World.inCompound(this.x, this.y)) { this.state = 'assault'; return; }
-    if (!this.entry || this.think <= 0.02) this.entry = World.nearestEntry(this.x, this.y);
-    const e = this.entry || World.gates[0];
+    if (World.inCompound(this.x, this.y)) { this.state = 'assault'; this.entry = null; return; }
+    if (!this.entry) this.entry = this._pickEntry();
+    const e = this.entry;
 
-    // Cut the wire if a fence panel is right in front of us.
-    const fx = this.x + Math.cos(this.look) * (this.radius + 10);
-    const fy = this.y + Math.sin(this.look) * (this.radius + 10);
-    const f = World.fenceAt(fx, fy, 12);
+    // Cut the wire if a panel is right in front of us.
+    const fx = this.x + Math.cos(this.look) * (this.radius + 9);
+    const fy = this.y + Math.sin(this.look) * (this.radius + 9);
+    const f = World.fenceAt(fx, fy, 11);
     if (f && this.meleeCd <= 0) {
-      f.hp -= 22; f.hit = 0.2;
+      f.hp -= this.T.melee ? 20 : 11;
+      f.hit = 0.2;
       this.meleeCd = 0.55;
       FX.impact(fx, fy, this.look, 'wood');
       Audio2.hitWood(fx, fy);
@@ -656,52 +785,79 @@ class Enemy extends Actor {
       }
       return;
     }
-    this._moveToward(e.x, e.y, dt, 1);
+
+    if (e.cut) this._moveToward(e.x, e.y, dt, 1, true);
+    else this._navTo(e.x, e.y, dt, 1);
+
+    // A cut target that has already been flattened is no longer interesting.
+    if (e.cut && !World.fenceAt(e.x, e.y, 14)) this.entry = null;
 
     // Return fire on the move if a defender is close and exposed.
     if (this.target && this.target.alive && dist(this.x, this.y, this.target.x, this.target.y) < 260 &&
         World.lineOfSight(this.x, this.y, this.target.x, this.target.y) && chance(0.4)) {
       const want = Math.atan2(this.target.y - this.y, this.target.x - this.x);
       this.look = approachAngle(this.look, want, dt * 6);
-      if (this.tryShoot(this.look, game, 2.6 - this.accuracy)) Audio2.enemyShot(this.x, this.y);
+      if (this.tryShoot(this.look, game, 2.0 - this.accuracy * 0.5)) Audio2.enemyShot(this.x, this.y);
     }
   }
 
   /** Inside the wire: attack defenders, or set about the station itself. */
   _assault(dt, game) {
-    const S = World.station;
-    const sc = { x: S.x + S.w / 2, y: S.y + S.h / 2 };
-
     if (this.target && this.target.alive) {
       const d = dist(this.x, this.y, this.target.x, this.target.y);
       const want = Math.atan2(this.target.y - this.y, this.target.x - this.x);
       this.look = approachAngle(this.look, want, dt * 6);
-      if (d > 90) this._moveToward(this.target.x, this.target.y, dt, 1);
+      if (d > 90) this._navTo(this.target.x, this.target.y, dt, 1);
       else if (this.T.melee && d < 34) {
         if (this.meleeCd <= 0) {
           this.meleeCd = 0.9;
-          this.target.hurt(16, want, this, game);
+          this.target.hurt(13, want, this, game);
           FX.blood(this.target.x, this.target.y, want, 0.7);
           game.camera.addShake(this.target.isPlayer ? 6 : 1);
         }
       } else if (World.lineOfSight(this.x, this.y, this.target.x, this.target.y)) {
-        if (this.tryShoot(this.look, game, 2.2 - this.accuracy)) Audio2.enemyShot(this.x, this.y);
+        if (this.tryShoot(this.look, game, 1.6 - this.accuracy * 0.5)) Audio2.enemyShot(this.x, this.y);
       }
       return;
     }
 
-    // No defenders nearby — attack the building.
-    const d = dist(this.x, this.y, sc.x, sc.y);
-    const nearWall = d < Math.max(S.w, S.h) * 0.62;
-    if (!nearWall) { this._moveToward(sc.x, sc.y, dt, 1); return; }
+    // Nothing in sight. Non-arsonists look for a defender close by; if there is
+    // none they take up a firing position and shoot the building from a
+    // distance rather than walking across the compound after the player. A
+    // long chase radius here turns the player into a magnet that drags the
+    // whole attacking force inside the wire.
+    if (!this.arsonist) {
+      let best = null, bd = Infinity;
+      for (const d of game.defenders) {
+        if (!d.alive) continue;
+        const dd = dist(this.x, this.y, d.x, d.y);
+        if (dd < bd) { bd = dd; best = d; }
+      }
+      if (best && bd < 240) { this._navTo(best.x, best.y, dt, 1); return; }
 
-    this.look = approachAngle(this.look, Math.atan2(sc.y - this.y, sc.x - this.x), dt * 6);
+      const spot = World.stationAim(this.x, this.y);
+      if (this._range() > 220) { this._navTo(spot.x, spot.y, dt, 0.85); return; }
+      this.look = approachAngle(this.look, Math.atan2(spot.y - this.y, spot.x - this.x), dt * 5);
+      if (this.tryShoot(this.look, game, 1.6 - this.accuracy * 0.5)) Audio2.enemyShot(this.x, this.y);
+      return;
+    }
+
+    // Arsonists close with the building and set about it.
+    const aim = World.stationAim(this.x, this.y);
+    if (dist(this.x, this.y, aim.x, aim.y) > this.radius + 16) {
+      this._moveToward(aim.x, aim.y, dt, 1);
+      return;
+    }
+
+    this.look = approachAngle(this.look, Math.atan2(aim.y - this.y, aim.x - this.x), dt * 6);
     if (this.meleeCd <= 0) {
-      this.meleeCd = 0.75;
-      const hx = this.x + Math.cos(this.look) * 20, hy = this.y + Math.sin(this.look) * 20;
-      game.damageStation(this.T.melee ? 26 : 12, hx, hy);
+      this.meleeCd = 1.0;
+      const hx = this.x + Math.cos(this.look) * 16, hy = this.y + Math.sin(this.look) * 16;
+      game.damageStation(this.T.melee ? 6 : 3, hx, hy);
       FX.impact(hx, hy, this.look, 'wood');
       Audio2.stationHit(hx, hy);
+      // Attackers who reach the walls try to set the building alight.
+      if (this.T.melee && chance(0.05 + game.waveIndex * 0.02)) game.addFire(hx, hy);
     }
   }
 

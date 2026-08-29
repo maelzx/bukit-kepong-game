@@ -23,6 +23,7 @@ const UI = {
         over: $('screen-over'), win: $('screen-win'),
       },
       minimap: $('minimap'),
+      pips: $('section-pips'), sectionTxt: $('txt-section'),
       mute: $('btn-mute'),
       stats: $('stats-list'), overStats: $('over-stats'),
       lowHealth: $('low-health'),
@@ -46,6 +47,8 @@ const UI = {
       this.el.mute.classList.toggle('off', m);
     });
   },
+
+  resetCaches() { this._cache = {}; this._pipCount = -1; this._pipUp = -1; },
 
   show(name) {
     for (const k in this.el.screens) this.el.screens[k].classList.toggle('active', k === name);
@@ -76,6 +79,19 @@ const UI = {
     this.setWidth('st', this.el.station, st * 100);
     this.setText('stt', this.el.stationTxt, `${Math.max(0, Math.ceil(st * 100))}%`);
     this.el.station.classList.toggle('crit', st < 0.3);
+
+    // Section strength — how many constables are still on their feet
+    const up = g.police.reduce((n, p2) => n + (p2.alive ? 1 : 0), 0);
+    if (this._pipCount !== g.police.length) {
+      this._pipCount = g.police.length;
+      this.el.pips.innerHTML = g.police.map(() => '<i></i>').join('');
+    }
+    if (this._pipUp !== up) {
+      this._pipUp = up;
+      const nodes = this.el.pips.children;
+      g.police.forEach((p2, i) => nodes[i] && nodes[i].classList.toggle('down', !p2.alive));
+      this.setText('sec', this.el.sectionTxt, `${up}/${g.police.length}`);
+    }
 
     this.setText('ammo', this.el.ammo, String(p.ammo).padStart(2, '0'));
     this.setText('res', this.el.reserve, String(p.reserve));
@@ -123,6 +139,10 @@ const UI = {
     c.fillStyle = g.stationHp / CFG.STATION_HP < 0.35 ? '#c4552f' : '#c9a35a';
     c.fillRect(S.x * sx, S.y * sy, S.w * sx, S.h * sy);
 
+    for (const f of g.fires) {
+      c.fillStyle = 'rgba(255,150,50,0.9)';
+      c.beginPath(); c.arc(f.x * sx, f.y * sy, 2.6, 0, TAU); c.fill();
+    }
     for (const d of g.defenders) {
       if (!d.alive) continue;
       c.fillStyle = d.isPlayer ? '#eaf2ff' : '#7fd2a0';

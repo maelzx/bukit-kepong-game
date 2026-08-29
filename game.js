@@ -11,16 +11,16 @@
    Pressure is increased through numbers, attack directions and enemy mix —
    not by inflating hit points. --------------------------------------------- */
 const WAVES = [
-  { n: 5,  mix: { rifleman: 1.0 },                                dirs: ['n'],               tier: 0, gap: 13 },
-  { n: 7,  mix: { rifleman: 0.85, rusher: 0.15 },                 dirs: ['n', 'e'],          tier: 0, gap: 12 },
-  { n: 9,  mix: { rifleman: 0.70, rusher: 0.25, marksman: 0.05 }, dirs: ['n', 'e', 's'],     tier: 1, gap: 12 },
-  { n: 11, mix: { rifleman: 0.60, rusher: 0.30, marksman: 0.10 }, dirs: ['e', 's', 'w'],     tier: 1, gap: 11 },
-  { n: 13, mix: { rifleman: 0.55, rusher: 0.35, marksman: 0.10 }, dirs: ['n', 'e', 's', 'w'],tier: 2, gap: 11 },
-  { n: 15, mix: { rifleman: 0.50, rusher: 0.40, marksman: 0.10 }, dirs: ['n', 's', 'w'],     tier: 2, gap: 10 },
-  { n: 17, mix: { rifleman: 0.50, rusher: 0.40, marksman: 0.10 }, dirs: ['n', 'e', 's', 'w'],tier: 3, gap: 10 },
-  { n: 22, mix: { rifleman: 0.45, rusher: 0.45, marksman: 0.10 }, dirs: ['n', 'e', 's', 'w'],tier: 3, gap: 9 },
+  { n: 4,  mix: { rifleman: 1.0 },                                dirs: ['n'],               tier: 0, gap: 9 },
+  { n: 5,  mix: { rifleman: 0.85, rusher: 0.15 },                 dirs: ['n', 'e'],          tier: 0, gap: 8 },
+  { n: 6,  mix: { rifleman: 0.70, rusher: 0.25, marksman: 0.05 }, dirs: ['n', 'e', 's'],     tier: 1, gap: 8 },
+  { n: 7, mix: { rifleman: 0.60, rusher: 0.30, marksman: 0.10 }, dirs: ['e', 's', 'w'],     tier: 1, gap: 7 },
+  { n: 8, mix: { rifleman: 0.55, rusher: 0.35, marksman: 0.10 }, dirs: ['n', 'e', 's', 'w'],tier: 2, gap: 7 },
+  { n: 9, mix: { rifleman: 0.50, rusher: 0.40, marksman: 0.10 }, dirs: ['n', 's', 'w'],     tier: 2, gap: 6 },
+  { n: 10, mix: { rifleman: 0.50, rusher: 0.40, marksman: 0.10 }, dirs: ['n', 'e', 's', 'w'],tier: 3, gap: 6 },
+  { n: 12, mix: { rifleman: 0.45, rusher: 0.45, marksman: 0.10 }, dirs: ['n', 'e', 's', 'w'],tier: 3, gap: 8 },
 ];
-const MAX_ALIVE = 26;          // concurrent hostiles — keeps 60 FPS comfortable
+const MAX_ALIVE = 12;          // concurrent hostiles — keeps 60 FPS comfortable
 
 const CONSTABLE_NAMES = ['JAMIL', 'HASSAN', 'OTHMAN', 'MOHD YUSOF', 'ABU BAKAR', 'IBRAHIM'];
 
@@ -39,6 +39,9 @@ const Game = {
   objectiveText: 'Hold the station until first light.',
   damageVignette: 0,
   time: 0,
+  hitMarker: 0, hitMarkerKill: false,
+  damageArcs: [],            // {ang, life} — where incoming fire came from
+  mist: [], fireflies: [],
   stats: { kills: 0, shots: 0, hits: 0, policeLost: 0, policeTotal: 0 },
 
   /* =============================================================== boot === */
@@ -51,6 +54,7 @@ const Game = {
 
     World.init();
     FX.init();
+    this.initAmbient();
     Bullets.init();
     Input.init(this.canvas);
 
@@ -75,7 +79,7 @@ const Game = {
     const h = this.canvas.clientHeight || window.innerHeight;
     this.canvas.width = Math.floor(w * this.dpr);
     this.canvas.height = Math.floor(h * this.dpr);
-    this.zoom = clamp(h / 720, 0.85, 1.8);
+    this.zoom = clamp(h / 900, 0.78, 1.55);
     this.vw = w / this.zoom;
     this.vh = h / this.zoom;
     this.light.width = Math.ceil(w / 2);
@@ -112,6 +116,8 @@ const Game = {
     this.waveGap = CFG.PREP_TIME;
     this.spawnQueue = 0;
     this.damageVignette = 0;
+    this.damageArcs.length = 0;
+    this.hitMarker = 0;
     this.stats = { kills: 0, shots: 0, hits: 0, policeLost: 0, policeTotal: this.police.length };
     this.objectiveText = 'Stand to. Hostiles inbound.';
 
@@ -119,6 +125,7 @@ const Game = {
     this.camera.y = this.player.y - this.vh / 2;
 
     this.state = 'playing';
+    UI.resetCaches();
     UI.hideAll();
     document.body.classList.add('in-game');
     UI.banner('BUKIT KEPONG', '23 FEBRUARY 1950 — 04:15', 3.4);
@@ -135,6 +142,72 @@ const Game = {
     this.state = p ? 'paused' : 'playing';
     if (p) UI.show('pause'); else UI.hideAll();
     document.body.classList.add('in-game');
+  },
+
+  /* ----------------------------------------------------------- ambience -- */
+  /** Low drifting river mist and fireflies — cheap, fixed-size, no pooling. */
+  initAmbient() {
+    const rng = makeRng(77);
+    this.mist = [];
+    for (let i = 0; i < 22; i++) {
+      this.mist.push({
+        x: rng() * CFG.WORLD_W, y: rng() * CFG.WORLD_H,
+        r: 120 + rng() * 220, a: 0.03 + rng() * 0.05,
+        vx: 6 + rng() * 12, vy: (rng() - 0.5) * 5,
+      });
+    }
+    this.fireflies = [];
+    for (let i = 0; i < 40; i++) {
+      this.fireflies.push({
+        x: rng() * CFG.WORLD_W, y: rng() * CFG.WORLD_H,
+        p: rng() * TAU, sp: 0.6 + rng() * 1.2, r: 26 + rng() * 60,
+        ox: rng() * CFG.WORLD_W, oy: rng() * CFG.WORLD_H,
+      });
+    }
+  },
+
+  updateAmbient(dt) {
+    for (const m of this.mist) {
+      m.x += m.vx * dt; m.y += m.vy * dt;
+      if (m.x - m.r > CFG.WORLD_W) m.x = -m.r;
+      if (m.y - m.r > CFG.WORLD_H) m.y = -m.r;
+      if (m.y + m.r < 0) m.y = CFG.WORLD_H + m.r;
+    }
+    for (const f of this.fireflies) f.p += f.sp * dt;
+  },
+
+  drawMist(ctx, view) {
+    ctx.save();
+    for (const m of this.mist) {
+      if (m.x + m.r < view.x || m.x - m.r > view.x + view.w) continue;
+      if (m.y + m.r < view.y || m.y - m.r > view.y + view.h) continue;
+      const g = ctx.createRadialGradient(m.x, m.y, 0, m.x, m.y, m.r);
+      g.addColorStop(0, `rgba(186,196,204,${m.a})`);
+      g.addColorStop(1, 'rgba(186,196,204,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(m.x, m.y, m.r, 0, TAU); ctx.fill();
+    }
+    ctx.restore();
+  },
+
+  drawFireflies(ctx, view) {
+    ctx.save();
+    ctx.shadowBlur = 8; ctx.shadowColor = 'rgba(200,255,140,0.9)';
+    for (const f of this.fireflies) {
+      const x = f.ox + Math.cos(f.p) * f.r, y = f.oy + Math.sin(f.p * 0.7) * f.r * 0.6;
+      if (x < view.x || x > view.x + view.w || y < view.y || y > view.y + view.h) continue;
+      if (World.inCompound(x, y)) continue;
+      ctx.globalAlpha = 0.35 + Math.sin(f.p * 3) * 0.3;
+      ctx.fillStyle = '#cdf07a';
+      ctx.beginPath(); ctx.arc(x, y, 1.7, 0, TAU); ctx.fill();
+    }
+    ctx.restore();
+  },
+
+  /** Record the bearing of an incoming hit for the on-screen arc indicator. */
+  addDamageArc(ang) {
+    this.damageArcs.push({ ang, life: 1.3 });
+    if (this.damageArcs.length > 8) this.damageArcs.shift();
   },
 
   /* =============================================================== loop === */
@@ -174,6 +247,12 @@ const Game = {
     this.separate();
     Bullets.update(dt, this);
     FX.update(dt);
+    this.updateAmbient(dt);
+    for (let i = this.damageArcs.length - 1; i >= 0; i--) {
+      this.damageArcs[i].life -= dt;
+      if (this.damageArcs[i].life <= 0) this.damageArcs.splice(i, 1);
+    }
+    this.hitMarker = Math.max(0, this.hitMarker - dt);
     this.updateFires(dt);
     this.bakeCorpses();
 
@@ -222,16 +301,24 @@ const Game = {
     }
 
     this.waveTimer += dt;
-    this.objectiveText = 'DEFEND THE POLICE STATION.';
+    this.objectiveText = this.fires.length
+      ? 'THE STATION IS ALIGHT — hold SPACE at the flames.'
+      : 'DEFEND THE POLICE STATION.';
 
-    if (this.spawnQueue > 0) {
+    if (this.spawnQueue > 0 && aliveCount < MAX_ALIVE) {
       this.spawnTimer -= dt;
-      if (this.spawnTimer <= 0 && aliveCount < MAX_ALIVE) {
+      if (this.spawnTimer <= 0) {
         this.spawnTimer = this.wave.interval;
         this.spawnEnemy();
         this.spawnQueue--;
       }
-    } else if (aliveCount <= 2 || this.waveTimer > 70) {
+    }
+
+    // Move on once the wave is broken, or after a hard cap so the assault keeps
+    // escalating even when attackers hang back — or when the hostile cap has
+    // blocked the rest of the wave from spawning at all.
+    const spent = this.spawnQueue === 0;
+    if ((spent && (aliveCount <= 3 || this.waveTimer > 30)) || this.waveTimer > 44) {
       this.endWave();
     }
   },
@@ -244,7 +331,7 @@ const Game = {
       ...base,
       n: base.n + over * 3,
       tier: Math.min(4, base.tier + over),
-      interval: clamp(1.25 - this.waveIndex * 0.08, 0.45, 1.25),
+      interval: clamp(1.15 - this.waveIndex * 0.09, 0.35, 1.15),
     };
     this.spawnQueue = this.wave.n;
     this.spawnTimer = 0;
@@ -296,7 +383,7 @@ const Game = {
 
     // Structural fires start as the building is broken up.
     const ratio = this.stationHp / CFG.STATION_HP;
-    if (ratio < 0.62 && this.fires.length < 6 && chance(0.05)) this.addFire();
+    if (ratio < 0.55 && this.fires.length < 4 && chance(0.035)) this.addFire();
     if (before > CFG.STATION_HP * 0.5 && this.stationHp <= CFG.STATION_HP * 0.5)
       UI.banner('THE STATION IS BURNING', 'Structural integrity 50%', 2.6);
     if (before > CFG.STATION_HP * 0.25 && this.stationHp <= CFG.STATION_HP * 0.25)
@@ -305,20 +392,69 @@ const Game = {
     if (this.stationHp <= 0) this.lose('THE STATION HAS FALLEN');
   },
 
-  addFire() {
+  /**
+   * Start a structural fire. Fires are always seated against the building's
+   * outer wall — that is where an attacker would set the attap alight, and it
+   * is also the only place the player can physically reach to beat them out,
+   * since the station itself is solid.
+   */
+  addFire(x, y) {
+    if (this.fires.length >= 3) return;
     const S = World.station;
-    this.fires.push({ x: S.x + rand(24, S.w - 24), y: S.y + rand(24, S.h - 24), t: rand(0, 6) });
-    Audio2.explosion(S.x + S.w / 2, S.y + S.h / 2);
-    FX.explosion(this.fires[this.fires.length - 1].x, this.fires[this.fires.length - 1].y, 40);
+    const INSET = 14;
+    let fx = clamp(x ?? S.x + rand(20, S.w - 20), S.x + INSET, S.x + S.w - INSET);
+    let fy = clamp(y ?? S.y + rand(20, S.h - 20), S.y + INSET, S.y + S.h - INSET);
+
+    // Snap to the nearest wall.
+    const dl = fx - S.x, dr = S.x + S.w - fx, dt = fy - S.y, db = S.y + S.h - fy;
+    const m = Math.min(dl, dr, dt, db);
+    if (m === dl) fx = S.x + INSET;
+    else if (m === dr) fx = S.x + S.w - INSET;
+    else if (m === dt) fy = S.y + INSET;
+    else fy = S.y + S.h - INSET;
+
+    this.fires.push({ x: fx, y: fy, t: rand(0, 6), power: 1 });
+    Audio2.explosion(fx, fy);
+    FX.explosion(fx, fy, 40);
     this.camera.addShake(7);
+    UI.banner('FIRE IN THE STATION', 'The attap is alight', 2.2);
   },
 
+  /**
+   * Fires burn the station down on a timer. The player can beat them out by
+   * standing at the flames and holding SPACE — the one job that pulls you off
+   * the firing line, which is where most of this game's tension comes from.
+   */
   updateFires(dt) {
-    for (const f of this.fires) {
+    const p = this.player;
+    const fighting = p.alive && Input.down(' ', 'spacebar');
+    this.fightingFire = false;
+
+    for (let i = this.fires.length - 1; i >= 0; i--) {
+      const f = this.fires[i];
       f.t += dt;
-      if (chance(dt * 22)) FX.embers(f.x, f.y, 1);
+      this.stationHp = Math.max(0, this.stationHp - 1.2 * f.power * dt);
+
+      if (fighting && dist2(p.x, p.y, f.x, f.y) < 72 * 72) {
+        f.power -= dt * 0.62;
+        this.fightingFire = true;
+        for (let k = 0; k < 2; k++)                     // steam and thrown water
+          FX.spawn(f.x + rand(-14, 14), f.y + rand(-14, 14), rand(-30, 30), rand(-70, -20),
+            { life: rand(0.4, 0.9), size: rand(4, 9), color: '196,206,210', drag: 1.4, grow: 26, fade: 0.4 });
+      } else {
+        f.power -= dt * 0.006;                          // burns itself down slowly
+      }
+
+      if (f.power <= 0) {
+        this.fires.splice(i, 1);
+        FX.smoke(f.x, f.y, 4, '150,156,158');
+        UI.banner('FIRE OUT', 'Back to your post', 1.8);
+        continue;
+      }
+      if (chance(dt * 22 * f.power)) FX.embers(f.x, f.y, 1);
       if (chance(dt * 7)) FX.smoke(f.x, f.y, 1, '58,54,50');
     }
+    if (this.fires.length && this.stationHp <= 0) this.lose('THE STATION HAS FALLEN');
   },
 
   onEnemyDown(e) {
@@ -411,18 +547,94 @@ const Game = {
     Bullets.draw(ctx);
     FX.draw(ctx, view);
     World.drawCanopies(ctx, this.time);
+    this.drawMist(ctx, view);
     this.drawLighting(ctx, view);
+    this.drawFireflies(ctx, view);
     FX.drawTexts(ctx);
 
     /* --- screen-space overlays --- */
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     this.drawOffscreenMarkers(ctx);
     this.drawVignette(ctx);
+    this.drawDamageArcs(ctx);
+    this.drawCrosshair(ctx);
+  },
+
+  /** Reticle whose gap tracks the weapon's current cone of fire. */
+  drawCrosshair(ctx) {
+    if (this.state !== 'playing') return;
+    const p = this.player;
+    const mx = Input.mouse.x, my = Input.mouse.y;
+    const spread = p.weapon.spread * (p.moving ? 1.7 : 1) * (1 + p.heat * 0.9);
+    const gap = 7 + spread * 260 + (p.reloading > 0 ? 10 : 0);
+    const len = 7;
+
+    // Red when the reticle is over a hostile
+    let hot = false;
+    for (const e of this.enemies) {
+      if (!e.alive) continue;
+      if (dist2(e.x, e.y, Input.mouse.wx, Input.mouse.wy) < (e.radius + 8) ** 2) { hot = true; break; }
+    }
+    ctx.save();
+    ctx.translate(mx, my);
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = hot ? 'rgba(224,110,80,0.95)' : 'rgba(232,220,192,0.75)';
+    ctx.lineWidth = 1.6;
+    ctx.shadowBlur = 4; ctx.shadowColor = 'rgba(0,0,0,0.9)';
+    for (let i = 0; i < 4; i++) {
+      const a = i * Math.PI / 2;
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(a) * gap, Math.sin(a) * gap);
+      ctx.lineTo(Math.cos(a) * (gap + len), Math.sin(a) * (gap + len));
+      ctx.stroke();
+    }
+    ctx.fillStyle = hot ? 'rgba(224,110,80,0.9)' : 'rgba(232,220,192,0.55)';
+    ctx.beginPath(); ctx.arc(0, 0, 1.4, 0, TAU); ctx.fill();
+
+    // Hit marker
+    if (this.hitMarker > 0) {
+      const a = clamp(this.hitMarker / 0.22, 0, 1);
+      ctx.globalAlpha = a;
+      ctx.strokeStyle = this.hitMarkerKill ? '#e8a45c' : '#f2eada';
+      ctx.lineWidth = 2;
+      const g2 = gap * 0.55, l2 = 6 * (2 - a);
+      for (let i = 0; i < 4; i++) {
+        const ang = Math.PI / 4 + i * Math.PI / 2;
+        ctx.beginPath();
+        ctx.moveTo(Math.cos(ang) * g2, Math.sin(ang) * g2);
+        ctx.lineTo(Math.cos(ang) * (g2 + l2), Math.sin(ang) * (g2 + l2));
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
+  },
+
+  /** Arcs at the screen edge showing where the player is being shot from. */
+  drawDamageArcs(ctx) {
+    if (!this.damageArcs.length) return;
+    const w = this.canvas.width / this.dpr, h = this.canvas.height / this.dpr;
+    const cx = w / 2, cy = h / 2, r = Math.min(w, h) * 0.36;
+    ctx.save();
+    ctx.translate(cx, cy);
+    for (const d of this.damageArcs) {
+      const a = clamp(d.life / 1.3, 0, 1);
+      ctx.globalAlpha = a * 0.7;
+      const g = ctx.createRadialGradient(0, 0, r, 0, 0, r + 90);
+      g.addColorStop(0, 'rgba(190,40,28,0)');
+      g.addColorStop(1, 'rgba(190,40,28,0.85)');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(0, 0, r + 90, d.ang - 0.42, d.ang + 0.42);
+      ctx.arc(0, 0, r, d.ang + 0.42, d.ang - 0.42, true);
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.restore();
   },
 
   drawFires(ctx) {
     for (const f of this.fires) {
-      const s = 1 + Math.sin(this.time * 9 + f.t) * 0.18;
+      const s = (0.45 + f.power * 0.55) * (1 + Math.sin(this.time * 9 + f.t) * 0.18);
       const g = ctx.createRadialGradient(f.x, f.y, 2, f.x, f.y, 34 * s);
       g.addColorStop(0, 'rgba(255,210,120,0.85)');
       g.addColorStop(0.4, 'rgba(240,120,40,0.5)');
@@ -449,7 +661,8 @@ const Game = {
     const k = L.width / (this.vw);            // world → light-canvas scale
     l.setTransform(1, 0, 0, 1, 0, 0);
     l.globalCompositeOperation = 'source-over';
-    l.fillStyle = 'rgba(14,20,42,0.48)';
+    l.clearRect(0, 0, L.width, L.height);       // must clear: alpha accumulates
+    l.fillStyle = 'rgba(14,20,44,0.56)';
     l.fillRect(0, 0, L.width, L.height);
     l.setTransform(k, 0, 0, k, -view.x * k, -view.y * k);
     l.globalCompositeOperation = 'destination-out';
@@ -465,12 +678,10 @@ const Game = {
     };
 
     const S = World.station;
-    const C = World.compound;
-    punch(C.x + C.w / 2, C.y + C.h / 2, 620, 0.34);      // moonlight over the compound
-    punch(S.x + S.w / 2, S.y + S.h / 2, 360, 0.9);
+    punch(S.x + S.w / 2, S.y + S.h / 2, 320, 0.7);
     for (const p of World.props) if (p.kind === 'lamp') punch(p.x, p.y - 18, 200 + Math.sin(this.time * 7 + p.x) * 10, 0.95);
     for (const f of this.fires) punch(f.x, f.y, 150 + Math.sin(this.time * 8 + f.t) * 16, 0.95);
-    if (this.player && this.player.alive) punch(this.player.x, this.player.y, 300, 0.7);
+    if (this.player && this.player.alive) punch(this.player.x, this.player.y, 240, 0.45);
     for (const f of FX.flashes) punch(f.x, f.y, f.r * (f.life / f.max), 1);
 
     l.setTransform(1, 0, 0, 1, 0, 0);
@@ -484,20 +695,22 @@ const Game = {
     const cx = w / 2, cy = h / 2;
     const m = 34;
     ctx.save();
-    for (const e of this.enemies) {
-      if (!e.alive) continue;
-      const sx = (e.x - this.camera.vx) * this.zoom, sy = (e.y - this.camera.vy) * this.zoom;
-      if (sx > -20 && sx < w + 20 && sy > -20 && sy < h + 20) continue;
+    const mark = (wx, wy, color, size, alpha) => {
+      const sx = (wx - this.camera.vx) * this.zoom, sy = (wy - this.camera.vy) * this.zoom;
+      if (sx > -20 && sx < w + 20 && sy > -20 && sy < h + 20) return;
       const a = Math.atan2(sy - cy, sx - cx);
-      const px = cx + Math.cos(a) * (Math.min(cx, cy) - m);
-      const py = cy + Math.sin(a) * (Math.min(cx, cy) - m);
       ctx.save();
-      ctx.translate(px, py); ctx.rotate(a);
-      ctx.globalAlpha = 0.55;
-      ctx.fillStyle = '#c9553f';
-      ctx.beginPath(); ctx.moveTo(9, 0); ctx.lineTo(-6, 5); ctx.lineTo(-6, -5); ctx.closePath(); ctx.fill();
+      ctx.translate(cx + Math.cos(a) * (Math.min(cx, cy) - m), cy + Math.sin(a) * (Math.min(cx, cy) - m));
+      ctx.rotate(a);
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = color;
+      ctx.beginPath(); ctx.moveTo(size, 0); ctx.lineTo(-size * 0.7, size * 0.55); ctx.lineTo(-size * 0.7, -size * 0.55);
+      ctx.closePath(); ctx.fill();
       ctx.restore();
-    }
+    };
+    for (const e of this.enemies) if (e.alive) mark(e.x, e.y, '#c9553f', 9, 0.55);
+    // Fires are the most urgent thing on the map — flag them harder.
+    for (const f of this.fires) mark(f.x, f.y, '#f0a63c', 14, 0.6 + Math.sin(this.time * 8) * 0.3);
     ctx.restore();
   },
 
@@ -507,7 +720,7 @@ const Game = {
       this._vigW = w; this._vigH = h;
       const g = ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.35, w / 2, h / 2, Math.max(w, h) * 0.72);
       g.addColorStop(0, 'rgba(0,0,0,0)');
-      g.addColorStop(1, 'rgba(0,0,0,0.46)');
+      g.addColorStop(1, 'rgba(0,0,0,0.52)');
       this._vig = g;
     }
     ctx.fillStyle = this._vig;

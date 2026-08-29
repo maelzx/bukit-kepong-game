@@ -11,14 +11,14 @@ const CFG = {
 
   // Mission length in seconds. 6 minutes plays well as a prototype session;
   // raise to 600 for a full 10-minute assault.
-  MISSION_DURATION: 360,
+  MISSION_DURATION: 300,
   PREP_TIME: 12,            // quiet countdown before the first attack
 
   PLAYER_SPEED: 148,        // px/s — deliberately not "twitch shooter" fast
-  PLAYER_HP: 100,
+  PLAYER_HP: 150,
 
-  STATION_HP: 1400,
-  POLICE_HP: 90,
+  STATION_HP: 1800,
+  POLICE_HP: 112,
 
   BULLET_MAX: 900,          // pooled
   PARTICLE_MAX: 1400,       // pooled
