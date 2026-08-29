@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bukit Kepong — 23 February 1950</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<canvas id="game"></canvas>
+
+<!-- ============================ HEADS-UP DISPLAY ======================== -->
+<div id="hud">
+  <div class="hud-corner tl">
+    <div class="hud-title">BUKIT KEPONG — 23 FEBRUARY 1950</div>
+    <div class="hud-label">OBJECTIVE</div>
+    <div id="txt-objective" class="hud-objective">Defend the police station.</div>
+  </div>
+
+  <div class="hud-corner tc">
+    <div id="txt-time" class="hud-time">6:00</div>
+    <div class="hud-sub"><span id="txt-wave">STAND TO</span> &nbsp;·&nbsp; <span id="txt-enemies">0 HOSTILES</span></div>
+  </div>
+
+  <div class="hud-corner tr">
+    <canvas id="minimap" width="176" height="132"></canvas>
+    <button id="btn-mute" class="ghost-btn">SOUND: ON</button>
+  </div>
+
+  <div class="hud-corner bl">
+    <div class="meter">
+      <span class="hud-label">HEALTH</span>
+      <div class="bar-track"><div id="bar-health" class="bar-fill health"></div></div>
+      <span id="txt-health" class="meter-num">100</span>
+    </div>
+    <div class="meter">
+      <span class="hud-label">STATION</span>
+      <div class="bar-track"><div id="bar-station" class="bar-fill station"></div></div>
+      <span id="txt-station" class="meter-num">100%</span>
+    </div>
+  </div>
+
+  <div class="hud-corner br">
+    <div class="ammo-block">
+      <div class="hud-label right">STEN Mk II</div>
+      <div class="ammo-line"><span id="txt-ammo">32</span><i>/</i><span id="txt-reserve">224</span></div>
+      <div id="reload-ind" class="reload"><span>RELOADING</span><div class="reload-track"><div id="reload-fill"></div></div></div>
+    </div>
+  </div>
+
+  <div id="banner-wrap"><div id="banner"></div><div id="banner-sub"></div></div>
+  <div id="low-health"></div>
+</div>
+
+<!-- ================================ SCREENS ============================= -->
+<div id="screen-title" class="screen active">
+  <div class="panel wide">
+    <div class="stamp">MALAYAN EMERGENCY · JOHOR</div>
+    <h1 class="title">BUKIT KEPONG</h1>
+    <div class="subtitle">23 FEBRUARY 1950</div>
+    <p class="tagline">Before first light, the police station on the Muar River comes under attack.<br>Defend the station.</p>
+    <div class="btn-row">
+      <button id="btn-start" class="btn primary">START</button>
+      <button id="btn-howto" class="btn">HOW TO PLAY</button>
+    </div>
+    <p class="disclaimer">A dramatised interactive interpretation of a historical event.
+      Map layout, characters and gameplay statistics are fictionalised abstractions.</p>
+  </div>
+</div>
+
+<div id="screen-howto" class="screen">
+  <div class="panel">
+    <h2>HOW TO PLAY</h2>
+    <ul class="keys">
+      <li><b>W A S D</b> / <b>Arrows</b><span>Move</span></li>
+      <li><b>Mouse</b><span>Aim</span></li>
+      <li><b>Left Click</b><span>Fire the Sten gun</span></li>
+      <li><b>R</b><span>Reload</span></li>
+      <li><b>ESC</b> / <b>P</b><span>Pause</span></li>
+      <li><b>M</b><span>Mute sound</span></li>
+    </ul>
+    <div class="brief">
+      <p><b>Your orders.</b> Hold the station until first light. The building has its own
+      structural integrity — if it is destroyed, the position is lost.</p>
+      <p><b>Your section.</b> Constables hold the sandbag posts at each gate. They shoot,
+      they take casualties, and they cannot be replaced. Support them.</p>
+      <p><b>The enemy.</b> Communist insurgents advance in waves: riflemen fire from cover,
+      rushers cut the wire and close to hand, marksmen shoot from the treeline.</p>
+    </div>
+    <div class="btn-row"><button id="btn-howto-back" class="btn">BACK</button></div>
+  </div>
+</div>
+
+<div id="screen-pause" class="screen">
+  <div class="panel">
+    <h2>PAUSED</h2>
+    <p class="tagline">The compound holds its breath.</p>
+    <div class="btn-row">
+      <button id="btn-resume" class="btn primary">RESUME</button>
+      <button id="btn-pause-menu" class="btn">MAIN MENU</button>
+    </div>
+  </div>
+</div>
+
+<div id="screen-over" class="screen">
+  <div class="panel">
+    <div class="stamp red">POSITION LOST</div>
+    <h2 id="over-title">THE STATION HAS FALLEN</h2>
+    <ul id="over-stats" class="stats"></ul>
+    <div class="btn-row">
+      <button id="btn-retry" class="btn primary">RETRY</button>
+      <button id="btn-over-menu" class="btn">MAIN MENU</button>
+    </div>
+  </div>
+</div>
+
+<div id="screen-win" class="screen">
+  <div class="panel wide">
+    <div class="stamp">DAWN · 23 FEBRUARY 1950</div>
+    <h2>MISSION COMPLETE</h2>
+    <ul id="stats-list" class="stats"></ul>
+    <div class="note">
+      <h3>HISTORICAL NOTE</h3>
+      <p>On 23 February 1950, the police station at Bukit Kepong in Muar, Johor, was attacked
+      before dawn by communist insurgents during the Malayan Emergency. A small number of
+      police personnel, together with family members and auxiliaries present at the station,
+      resisted the assault. The station was overrun and burnt, and many of its defenders were
+      killed. The events are commemorated in Malaysia as an act of duty and resistance.</p>
+      <p class="fine">This game is a dramatised interpretation, not a documentary reconstruction.
+      The map layout, the wave structure, the ten-minute clock, the individual characters and
+      every statistic in it are gameplay inventions. In particular, the "survive and hold"
+      victory condition is a game objective and does not represent the historical outcome.
+      For the actual history, consult published historical sources.</p>
+    </div>
+    <div class="btn-row">
+      <button id="btn-win-again" class="btn primary">PLAY AGAIN</button>
+      <button id="btn-win-menu" class="btn">MAIN MENU</button>
+    </div>
+  </div>
+</div>
+
+<script src="src/core.js"></script>
+<script src="src/audio.js"></script>
+<script src="src/world.js"></script>
+<script src="src/fx.js"></script>
+<script src="src/entities.js"></script>
+<script src="src/ui.js"></script>
+<script src="game.js"></script>
+</body>
+</html>
