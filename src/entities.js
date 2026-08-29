@@ -329,8 +329,8 @@ class Actor {
 
 /* ---------------------------------------------------------------- Player -- */
 class Player extends Actor {
-  constructor(x, y) {
-    super(x, y, CFG.PLAYER_HP, 'police');
+  constructor(x, y, hp = CFG.PLAYER_HP) {
+    super(x, y, hp, 'police');
     this.faction = 'police';
     this.isPlayer = true;
     this.weapon = WEAPONS.sten;
@@ -341,6 +341,7 @@ class Player extends Actor {
     this.radius = 13;
     this.speedMod = 1;
     this.heat = 0;
+    this.lockTarget = null;      // enemy the aim assist is currently tracking
     this.hurtCooldown = 0;
     this.palette = {
       shirt: '#867a52', shorts: '#4c4630', skin: '#a3754c',
@@ -378,13 +379,26 @@ class Player extends Actor {
     World.collide(this, this.radius);
 
     /* --- aiming --- */
-    this.look = Math.atan2(Input.mouse.wy - this.y, Input.mouse.wx - this.x);
+    const D = game.difficulty;
+    const lock = D.autoAim ? this.acquireTarget(game) : null;
+    this.lockTarget = lock;
+    if (lock) {
+      // Swing onto the target quickly, but not instantly — it should read as a
+      // steadied hand rather than a turret snapping around.
+      const want = Math.atan2(lock.y - this.y, lock.x - this.x);
+      this.look = approachAngle(this.look, want, dt * 15);
+    } else {
+      this.look = Math.atan2(Input.mouse.wy - this.y, Input.mouse.wx - this.x);
+    }
 
     /* --- firing --- */
-    const w = this.weapon;
-    if (Input.mouse.down && this.reloading <= 0) {
+    const onTarget = lock && Math.abs(angDiff(this.look,
+      Math.atan2(lock.y - this.y, lock.x - this.x))) < 0.2;
+    const wantsFire = Input.mouse.down || (D.autoFire && onTarget);
+
+    if (wantsFire && this.reloading <= 0) {
       if (this.ammo > 0) {
-        const spreadMul = (this.moving ? 1.7 : 1) * (1 + this.heat * 0.9);
+        const spreadMul = (this.moving ? 1.7 : 1) * (1 + this.heat * 0.9) * D.spread;
         if (this.tryShoot(this.look, game, spreadMul)) {
           this.heat = Math.min(1, (this.heat || 0) + 0.16);
           game.camera.addShake(1.6);
@@ -399,6 +413,32 @@ class Player extends Actor {
     this.heat = Math.max(0, (this.heat || 0) - dt * 1.1);
     if (Input.hit('r')) this.startReload();
     if (this.ammo === 0 && this.reloading <= 0) this.startReload();
+  }
+
+  /**
+   * Aim assist. Picks whoever is closest to where the mouse is already
+   * pointing, then closest overall — so the player still chooses the target,
+   * they just do not have to track it by hand.
+   */
+  acquireTarget(game) {
+    const RANGE = 560;
+    const aim = Math.atan2(Input.mouse.wy - this.y, Input.mouse.wx - this.x);
+    let best = null, bs = Infinity;
+    for (const e of game.enemies) {
+      if (!e.alive) continue;
+      const d = dist(this.x, this.y, e.x, e.y);
+      if (d > RANGE) continue;
+      if (!World.lineOfSight(this.x, this.y, e.x, e.y)) continue;
+      const off = Math.abs(angDiff(aim, Math.atan2(e.y - this.y, e.x - this.x)));
+      const score = off * 260 + d;
+      if (score < bs) { bs = score; best = e; }
+    }
+    return best;
+  }
+
+  /** Difficulty scales what actually lands on the player. */
+  hurt(dmg, ang, source, game) {
+    super.hurt(dmg * (game ? game.difficulty.damageTaken : 1), ang, source, game);
   }
 
   onReload() { Audio2.reloadOut(); }

@@ -3,10 +3,11 @@
 const { loadGame } = require('./harness.js');
 
 /** Run one mission. mode: 'idle' | 'bot' */
-function run(mode) {
+function run(mode, diff = 'normal') {
   const pro = mode === 'pro';
   const api = loadGame();
-  const { Game, World, Input, CFG, dist } = api;
+  const { Game, World, Input, CFG, dist, DIFFICULTIES } = api;
+  Game.difficulty = DIFFICULTIES[diff];
   Game.startRun();
 
   const P = Game.player;
@@ -90,6 +91,8 @@ function summarise(label, rows) {
 }
 
 const N = Number(process.argv[2] || 4);
-summarise('IDLE PLAYER (invulnerable, does nothing)', Array.from({ length: N }, () => run('idle')));
-summarise('BOT — holds one post, fights fires', Array.from({ length: N }, () => run('bot')));
-summarise('BOT — plays the intended strategy (hunts breachers)', Array.from({ length: N }, () => run('pro')));
+const DIFF = process.argv[3] || 'normal';
+console.log(`difficulty: ${DIFF}`);
+summarise('IDLE PLAYER (invulnerable, does nothing)', Array.from({ length: N }, () => run('idle', DIFF)));
+summarise('BOT — holds one post, fights fires', Array.from({ length: N }, () => run('bot', DIFF)));
+summarise('BOT — plays the intended strategy (hunts breachers)', Array.from({ length: N }, () => run('pro', DIFF)));

@@ -16,6 +16,20 @@ Open `index.html` in any modern browser. That's the whole install.
 Sound is synthesised at runtime with the Web Audio API, so browsers will hold it
 until your first click — press START and audio begins.
 
+## Difficulty
+
+Chosen on the title screen.
+
+| | |
+| --- | --- |
+| **RECRUIT** | Assisted aim and automatic fire, fewer attackers, and you take less punishment. The assist picks whoever is closest to where your mouse already points, so you still choose the target — you just don't have to track it by hand. A lock-on bracket shows what your weapon is following. |
+| **CONSTABLE** | You aim and fire yourself. |
+
+RECRUIT exists so the game can be played for its actual decisions — where to
+stand, which threat to answer, when to leave the firing line to fight a fire —
+without demanding precise aim. Both modes are tuned separately in
+`DIFFICULTIES` at the top of `src/core.js`.
+
 ## Controls
 
 | Key | Action |
@@ -65,7 +79,8 @@ without a browser. It is not shipped with the game.
 
 ```sh
 node tools/smoke.js        # exercises every system, screen and the render path
-node tools/balance.js 8    # runs mission soaks and reports the difficulty curve
+node tools/balance.js 8           # mission soaks on CONSTABLE
+node tools/balance.js 8 easy      # ...or on RECRUIT
 ```
 
 Key balance constants live in `src/core.js` (`CFG`) and the `WAVES` table at the

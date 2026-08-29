@@ -41,6 +41,9 @@ These are abstractions, not history:
   came to be burnt.
 - **The victory condition.** "Survive the assault" is a game objective. It does
   **not** represent the historical outcome, in which the station fell.
+- **Difficulty settings.** "RECRUIT" and "CONSTABLE" are game modes with
+  assisted aim and scaled numbers. They do not correspond to any real rank,
+  training standard or distinction between the people who were there.
 - **All statistics.** Health, weapon damage, rates of fire, magazine sizes,
   reload times, movement speeds and the station's "structural integrity" bar
   are balance numbers, not measurements.

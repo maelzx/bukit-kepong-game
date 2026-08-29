@@ -20,12 +20,12 @@ const WAVES = [
   { n: 10, mix: { rifleman: 0.50, rusher: 0.40, marksman: 0.10 }, dirs: ['n', 'e', 's', 'w'],tier: 3, gap: 6 },
   { n: 12, mix: { rifleman: 0.45, rusher: 0.45, marksman: 0.10 }, dirs: ['n', 'e', 's', 'w'],tier: 3, gap: 8 },
 ];
-const MAX_ALIVE = 12;          // concurrent hostiles — keeps 60 FPS comfortable
 
 const CONSTABLE_NAMES = ['JAMIL', 'HASSAN', 'OTHMAN', 'MOHD YUSOF', 'ABU BAKAR', 'IBRAHIM'];
 
 const Game = {
   state: 'title',            // title | playing | paused | over | win
+  difficulty: DIFFICULTIES.normal,
   canvas: null, ctx: null, dpr: 1, zoom: 1,
   vw: 0, vh: 0,
   camera: null,
@@ -60,6 +60,7 @@ const Game = {
 
     UI.init({
       start: () => this.startRun(),
+      setDifficulty: key => { this.difficulty = DIFFICULTIES[key] || DIFFICULTIES.normal; },
       resume: () => this.setPaused(false),
       menu: () => this.toMenu(),
       retry: () => this.startRun(),
@@ -95,7 +96,7 @@ const Game = {
     Bullets.clear();
 
     const S = World.station;
-    this.player = new Player(S.x + S.w / 2, S.y + S.h + 70);
+    this.player = new Player(S.x + S.w / 2, S.y + S.h + 70, this.difficulty.playerHp);
     this.police = [];
     // One constable behind each sandbag emplacement.
     World.sandbags.forEach((s, i) => {
@@ -305,7 +306,7 @@ const Game = {
       ? 'THE STATION IS ALIGHT — hold SPACE at the flames.'
       : 'DEFEND THE POLICE STATION.';
 
-    if (this.spawnQueue > 0 && aliveCount < MAX_ALIVE) {
+    if (this.spawnQueue > 0 && aliveCount < this.difficulty.maxAlive) {
       this.spawnTimer -= dt;
       if (this.spawnTimer <= 0) {
         this.spawnTimer = this.wave.interval;
@@ -329,7 +330,7 @@ const Game = {
     const over = Math.max(0, this.waveIndex - WAVES.length);      // endless overtime waves
     this.wave = {
       ...base,
-      n: base.n + over * 3,
+      n: Math.max(2, Math.round((base.n + over * 3) * this.difficulty.waveScale)),
       tier: Math.min(4, base.tier + over),
       interval: clamp(1.15 - this.waveIndex * 0.09, 0.35, 1.15),
     };
@@ -374,7 +375,7 @@ const Game = {
   damageStation(dmg, x, y) {
     if (this.state !== 'playing') return;
     const before = this.stationHp;
-    this.stationHp = Math.max(0, this.stationHp - dmg);
+    this.stationHp = Math.max(0, this.stationHp - dmg * this.difficulty.stationDamage);
     if (x !== undefined) {
       FX.impact(x, y, rand(0, TAU), 'wood');
       if (chance(0.3)) FX.smoke(x, y, 1, '80,72,60');
@@ -564,16 +565,32 @@ const Game = {
   drawCrosshair(ctx) {
     if (this.state !== 'playing') return;
     const p = this.player;
-    const mx = Input.mouse.x, my = Input.mouse.y;
-    const spread = p.weapon.spread * (p.moving ? 1.7 : 1) * (1 + p.heat * 0.9);
+    const lock = p.lockTarget && p.lockTarget.alive ? p.lockTarget : null;
+
+    // With aim assist on, the reticle sits on the target the player's weapon is
+    // actually tracking, and a faint dot stays under the mouse so the player can
+    // still see that they are steering which target gets picked.
+    let mx = Input.mouse.x, my = Input.mouse.y;
+    if (lock) {
+      ctx.save();
+      ctx.globalAlpha = 0.35;
+      ctx.fillStyle = 'rgba(232,220,192,0.9)';
+      ctx.beginPath(); ctx.arc(mx, my, 2, 0, TAU); ctx.fill();
+      ctx.restore();
+      mx = (lock.x - this.camera.vx) * this.zoom;
+      my = (lock.y - this.camera.vy) * this.zoom;
+    }
+    const spread = p.weapon.spread * (p.moving ? 1.7 : 1) * (1 + p.heat * 0.9) * this.difficulty.spread;
     const gap = 7 + spread * 260 + (p.reloading > 0 ? 10 : 0);
     const len = 7;
 
     // Red when the reticle is over a hostile
-    let hot = false;
-    for (const e of this.enemies) {
-      if (!e.alive) continue;
-      if (dist2(e.x, e.y, Input.mouse.wx, Input.mouse.wy) < (e.radius + 8) ** 2) { hot = true; break; }
+    let hot = !!lock;
+    if (!hot) {
+      for (const e of this.enemies) {
+        if (!e.alive) continue;
+        if (dist2(e.x, e.y, Input.mouse.wx, Input.mouse.wy) < (e.radius + 8) ** 2) { hot = true; break; }
+      }
     }
     ctx.save();
     ctx.translate(mx, my);
@@ -590,6 +607,21 @@ const Game = {
     }
     ctx.fillStyle = hot ? 'rgba(224,110,80,0.9)' : 'rgba(232,220,192,0.55)';
     ctx.beginPath(); ctx.arc(0, 0, 1.4, 0, TAU); ctx.fill();
+
+    // Lock-on brackets, so assisted aim never looks like the game firing itself
+    if (lock) {
+      const r = 15 + Math.sin(this.time * 9) * 1.4;
+      ctx.strokeStyle = 'rgba(224,110,80,0.9)';
+      ctx.lineWidth = 1.8;
+      for (let i = 0; i < 4; i++) {
+        const a = Math.PI / 4 + i * Math.PI / 2;
+        const bx = Math.cos(a) * r, by = Math.sin(a) * r;
+        ctx.beginPath();
+        ctx.moveTo(bx - Math.cos(a) * 5, by - Math.sin(a) * 5);
+        ctx.lineTo(bx, by);
+        ctx.stroke();
+      }
+    }
 
     // Hit marker
     if (this.hitMarker > 0) {

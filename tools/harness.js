@@ -45,6 +45,7 @@ function elStub(id) {
     id, style: {}, textContent: '', innerHTML: '', children: [],
     width: 176, height: 132,
     addEventListener: noop, click: noop, offsetWidth: 1,
+    querySelectorAll: () => [], getAttribute: () => null,
     getContext: () => ctxStub(),
     classList: {
       add: c => cls.add(c), remove: c => cls.delete(c),
@@ -95,7 +96,7 @@ function loadGame() {
   // const/class declarations live in the context's lexical scope, not on the
   // global object — re-export them so the harness can reach them.
   vm.runInContext(
-    'globalThis.api = { CFG, Game, World, FX, Bullets, Input, UI, Audio2, ' +
+    'globalThis.api = { CFG, DIFFICULTIES, Game, World, FX, Bullets, Input, UI, Audio2, ' +
     'Player, Police, Enemy, WEAPONS, dist, dist2, rand, chance, clamp };',
     ctx, { filename: 'export' });
   sandbox.api.Game.init();

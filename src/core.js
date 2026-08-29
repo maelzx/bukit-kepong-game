@@ -24,6 +24,29 @@ const CFG = {
   PARTICLE_MAX: 1400,       // pooled
 };
 
+/* ------------------------------ Difficulty --------------------------------
+   Two settings. RECRUIT exists so the game can be played for its actual
+   decisions — where to stand, which threat to answer, when to leave the firing
+   line for a fire — without demanding precise aim. It assists the shooting and
+   eases the pressure; it does not play the game for you.
+   -------------------------------------------------------------------------- */
+const DIFFICULTIES = {
+  easy: {
+    key: 'easy', name: 'RECRUIT',
+    blurb: 'Assisted aim and automatic fire. Fewer attackers, and you take less punishment.',
+    autoAim: true, autoFire: true,
+    playerHp: 190, damageTaken: 0.6, spread: 0.55,
+    stationDamage: 0.7, maxAlive: 9, waveScale: 0.75,
+  },
+  normal: {
+    key: 'normal', name: 'CONSTABLE',
+    blurb: 'You aim and fire yourself. The section holds the compound on its own.',
+    autoAim: false, autoFire: false,
+    playerHp: 150, damageTaken: 1, spread: 1,
+    stationDamage: 1, maxAlive: 12, waveScale: 1,
+  },
+};
+
 /* --------------------------------- Maths --------------------------------- */
 const TAU = Math.PI * 2;
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);

@@ -10,7 +10,7 @@ const check = (name, fn) => {
 };
 
 const api = loadGame();
-const { Game, World, FX, Bullets, Input, CFG, UI } = api;
+const { Game, World, FX, Bullets, Input, CFG, UI, DIFFICULTIES } = api;
 
 check('title screen renders', () => { Game.state = 'title'; Game.render(); });
 
@@ -137,6 +137,43 @@ check('weapon: fire, empty, reload, resupply', () => {
   for (let i = 0; i < 60 * 3; i++) { Game.update(1 / 60); Input.endFrame(); }
   if (P.ammo !== mag) throw new Error('did not reload: ' + P.ammo);
   if (P.reserve !== reserve0 - mag) throw new Error('reserve=' + P.reserve);
+});
+
+check('RECRUIT mode aims and fires with no player input', () => {
+  Game.difficulty = DIFFICULTIES.easy;
+  Game.startRun();
+  for (let i = 0; i < 60 * 90; i++) {
+    if (Game.state !== 'playing') break;
+    Game.update(1 / 60); Input.endFrame();          // never touches mouse or keys
+  }
+  if (Game.stats.shots === 0) throw new Error('auto-fire never fired');
+  if (Game.stats.hits === 0) throw new Error('aim assist never landed a round');
+  if (Game.player.maxHp !== DIFFICULTIES.easy.playerHp) throw new Error('easy hp not applied');
+});
+
+check('CONSTABLE mode does not fire by itself', () => {
+  Game.difficulty = DIFFICULTIES.normal;
+  Game.startRun();
+  for (let i = 0; i < 60 * 90; i++) {
+    if (Game.state !== 'playing') break;
+    Game.update(1 / 60); Input.endFrame();
+  }
+  if (Game.stats.shots !== 0) throw new Error('fired without input on normal');
+  if (Game.player.lockTarget) throw new Error('aim assist active on normal');
+});
+
+check('difficulty scales the wave size and the hostile cap', () => {
+  const sizes = {};
+  for (const key of ['easy', 'normal']) {
+    Game.difficulty = DIFFICULTIES[key];
+    Game.startRun();
+    Game.waveGap = 0;
+    Game.update(1 / 60);
+    sizes[key] = Game.wave.n;
+  }
+  if (!(sizes.easy < sizes.normal)) throw new Error(`easy=${sizes.easy} normal=${sizes.normal}`);
+  if (!(DIFFICULTIES.easy.maxAlive < DIFFICULTIES.normal.maxAlive)) throw new Error('cap not scaled');
+  Game.difficulty = DIFFICULTIES.normal;
 });
 
 console.log(failures ? `\n${failures} FAILURE(S)` : '\nAll smoke tests passed.');

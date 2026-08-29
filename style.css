@@ -180,6 +180,30 @@ h3 { font-size: 11px; letter-spacing: .3em; color: var(--khaki); margin: 0 0 8px
 .tagline { color: var(--ink-dim); font-size: 13px; line-height: 1.8; margin: 20px 0 26px; }
 .disclaimer { color: rgba(169,154,120,.6); font-size: 10px; line-height: 1.7; margin: 24px 0 0; }
 
+.difficulty { margin: 6px 0 24px; }
+.difficulty .hud-label { margin-bottom: 10px; }
+.seg {
+  display: inline-flex; border: 1px solid var(--edge); background: rgba(0,0,0,.35);
+}
+.seg-btn {
+  font-family: var(--mono); font-size: 11px; letter-spacing: .2em;
+  padding: 11px 22px; color: var(--ink-dim); background: transparent;
+  border: 0; border-right: 1px solid var(--edge); cursor: pointer; transition: all .15s;
+}
+.seg-btn:last-child { border-right: 0; }
+.seg-btn:hover { color: var(--ink); }
+.seg-btn.active { background: var(--khaki); color: #16150d; }
+.seg-note {
+  font-size: 11px; line-height: 1.7; color: var(--ink-dim);
+  margin: 14px auto 0; max-width: 420px; min-height: 34px;
+}
+
+.assist {
+  display: none; font-size: 10px; letter-spacing: .22em; color: var(--amber);
+  border: 1px solid rgba(221,164,63,.4); padding: 3px 8px; margin-top: 8px;
+}
+.assist.on { display: inline-block; }
+
 .btn-row { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 8px; }
 .btn {
   font-family: var(--mono); font-size: 12px; letter-spacing: .24em;

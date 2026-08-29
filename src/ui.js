@@ -25,6 +25,8 @@ const UI = {
       minimap: $('minimap'),
       pips: $('section-pips'), sectionTxt: $('txt-section'),
       mute: $('btn-mute'),
+      assist: $('assist-chip'),
+      diffRow: $('difficulty-row'), diffNote: $('difficulty-note'),
       stats: $('stats-list'), overStats: $('over-stats'),
       lowHealth: $('low-health'),
     };
@@ -40,6 +42,19 @@ const UI = {
     bind('btn-over-menu', handlers.menu);
     bind('btn-win-menu', handlers.menu);
     bind('btn-win-again', handlers.retry);
+    // Difficulty selector on the title screen
+    const diffBtns = this.el.diffRow.querySelectorAll
+      ? this.el.diffRow.querySelectorAll('[data-diff]') : [];
+    for (const b of diffBtns) {
+      b.addEventListener('click', () => {
+        Audio2.init(); Audio2.click();
+        for (const o of diffBtns) o.classList.toggle('active', o === b);
+        const key = b.getAttribute('data-diff');
+        this.el.diffNote.textContent = (DIFFICULTIES[key] || DIFFICULTIES.normal).blurb;
+        handlers.setDifficulty(key);
+      });
+    }
+
     this.el.mute.addEventListener('click', () => {
       Audio2.init();
       const m = Audio2.toggle();
@@ -48,7 +63,7 @@ const UI = {
     });
   },
 
-  resetCaches() { this._cache = {}; this._pipCount = -1; this._pipUp = -1; },
+  resetCaches() { this._cache = {}; this._pipCount = -1; this._pipUp = -1; this._assistOn = null; },
 
   show(name) {
     for (const k in this.el.screens) this.el.screens[k].classList.toggle('active', k === name);
@@ -108,6 +123,10 @@ const UI = {
     this.setText('time', this.el.time, `${m}:${String(s).padStart(2, '0')}`);
 
     this.setText('obj', this.el.objective, g.objectiveText);
+    if (this._assistOn !== g.difficulty.autoAim) {
+      this._assistOn = g.difficulty.autoAim;
+      this.el.assist.classList.toggle('on', g.difficulty.autoAim);
+    }
     this.drawMinimap(g);
   },
 
@@ -158,6 +177,7 @@ const UI = {
 
   fillStats(g, node) {
     const rows = [
+      ['Difficulty', g.difficulty.name],
       ['Insurgents accounted for', g.stats.kills],
       ['Shots fired', g.stats.shots],
       ['Accuracy', g.stats.shots ? Math.round(100 * g.stats.hits / g.stats.shots) + '%' : '—'],

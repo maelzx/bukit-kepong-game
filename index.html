@@ -50,6 +50,7 @@
     <div class="ammo-block">
       <div class="hud-label right">STEN Mk II</div>
       <div class="ammo-line"><span id="txt-ammo">32</span><i>/</i><span id="txt-reserve">224</span></div>
+      <div id="assist-chip" class="assist">ASSISTED AIM</div>
       <div id="reload-ind" class="reload"><span>RELOADING</span><div class="reload-track"><div id="reload-fill"></div></div></div>
     </div>
   </div>
@@ -65,6 +66,15 @@
     <h1 class="title">BUKIT KEPONG</h1>
     <div class="subtitle">23 FEBRUARY 1950</div>
     <p class="tagline">Before first light, the police station on the Muar River comes under attack.<br>Defend the station.</p>
+    <div class="difficulty">
+      <div class="hud-label">DIFFICULTY</div>
+      <div class="seg" id="difficulty-row">
+        <button class="seg-btn" data-diff="easy">RECRUIT</button>
+        <button class="seg-btn active" data-diff="normal">CONSTABLE</button>
+      </div>
+      <p class="seg-note" id="difficulty-note">You aim and fire yourself. The section holds the compound on its own.</p>
+    </div>
+
     <div class="btn-row">
       <button id="btn-start" class="btn primary">START</button>
       <button id="btn-howto" class="btn">HOW TO PLAY</button>
@@ -81,6 +91,7 @@
       <li><b>W A S D</b> / <b>Arrows</b><span>Move</span></li>
       <li><b>Mouse</b><span>Aim</span></li>
       <li><b>Left Click</b><span>Fire the Sten gun</span></li>
+      <li><b>RECRUIT mode</b><span>Aims and fires for you — you still choose the target by pointing</span></li>
       <li><b>R</b><span>Reload</span></li>
       <li><b>SPACE</b><span>Beat out fires (stand at the flames)</span></li>
       <li><b>ESC</b> / <b>P</b><span>Pause</span></li>
