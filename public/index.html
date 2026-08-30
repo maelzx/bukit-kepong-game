@@ -86,6 +86,28 @@
   <div id="low-health"></div>
 </div>
 
+<!-- ========================= TOUCH CONTROLS ============================= -->
+<!-- Shown only on coarse-pointer devices, and only while a mission runs. -->
+<div id="touch">
+  <div class="tz tz-move" id="tz-move"></div>
+  <div class="tz tz-aim" id="tz-aim"></div>
+  <div class="stick" id="stick-move"><i></i></div>
+  <div class="stick aim" id="stick-aim"><i></i></div>
+  <div class="tbtns">
+    <button class="tbtn douse" id="tb-douse">PUT<br>OUT</button>
+    <button class="tbtn small" id="tb-reload">RELOAD</button>
+  </div>
+  <button class="tbtn pause" id="tb-pause">II</button>
+</div>
+
+<div id="rotate">
+  <div class="rotate-inner">
+    <div class="rotate-icon"></div>
+    <div>TURN THE DEVICE SIDEWAYS</div>
+    <p>The compound needs the width.</p>
+  </div>
+</div>
+
 <!-- ================================ SCREENS ============================= -->
 <div id="screen-title" class="screen active">
   <div class="panel wide">
@@ -123,6 +145,7 @@
       <li><b>SPACE</b><span>Beat out fires (stand at the flames)</span></li>
       <li><b>ESC</b> / <b>P</b><span>Pause</span></li>
       <li><b>M</b><span>Mute sound</span></li>
+      <li><b>On a phone</b><span>Left thumb moves, right thumb aims — hold it to fire. Buttons at the corner beat out fires and reload.</span></li>
     </ul>
     <div class="brief">
       <p><b>Your orders.</b> Hold the station for five minutes, until first light. The building has its own
@@ -200,6 +223,7 @@
 <script src="src/world.js"></script>
 <script src="src/fx.js"></script>
 <script src="src/entities.js"></script>
+<script src="src/touch.js"></script>
 <script src="src/score.js"></script>
 <script src="src/ui.js"></script>
 <script src="game.js"></script>

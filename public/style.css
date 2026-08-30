@@ -274,3 +274,110 @@ h3 { font-size: 11px; letter-spacing: .3em; color: var(--khaki); margin: 0 0 8px
   #minimap { width: 120px; height: 90px; }
   .panel { padding: 26px 20px; }
 }
+
+/* ========================== TOUCH CONTROLS =============================
+   Present only on coarse-pointer devices. The sticks are floating: the base
+   appears wherever the thumb lands, which is the only scheme that works when
+   you cannot see your own hands.
+   ====================================================================== */
+#touch { position: fixed; inset: 0; z-index: 8; display: none; pointer-events: none; }
+body.touch.playing #touch { display: block; }
+body.touch.playing #game, body.touch.playing #touch { touch-action: none; }
+body.touch { overscroll-behavior: none; }
+
+/* Thumb zones. Transparent — they exist only to catch pointers. */
+/* touch-action does not inherit, so every interactive part sets it itself —
+   without this iOS treats a thumb drag as a page scroll. */
+.tz, .stick, .tbtn { touch-action: none; }
+.tz { position: absolute; top: 0; bottom: 0; pointer-events: auto; }
+.tz-move { left: 0; width: 45%; }
+.tz-aim  { right: 0; width: 55%; }
+
+.stick {
+  position: absolute; left: 0; top: 0; width: 0; height: 0;
+  opacity: 0; transition: opacity .14s ease; will-change: transform;
+}
+.stick.on { opacity: 1; }
+.stick::before {
+  content: ""; position: absolute; left: -52px; top: -52px; width: 104px; height: 104px;
+  border-radius: 50%; border: 1.5px solid rgba(190,165,106,.42);
+  background: radial-gradient(circle, rgba(20,18,12,.5) 40%, rgba(20,18,12,.16) 100%);
+}
+.stick i {
+  position: absolute; left: -23px; top: -23px; width: 46px; height: 46px;
+  border-radius: 50%; background: rgba(190,165,106,.34);
+  border: 1.5px solid rgba(232,220,192,.62); will-change: transform;
+}
+.stick.aim::before { border-color: rgba(224,110,80,.45); }
+.stick.aim i { background: rgba(224,110,80,.3); border-color: rgba(240,170,140,.7); }
+
+.tbtns {
+  position: absolute; right: calc(18px + env(safe-area-inset-right));
+  bottom: calc(84px + env(safe-area-inset-bottom));
+  display: flex; flex-direction: column; align-items: center; gap: 12px;
+  pointer-events: none;
+}
+.tbtn {
+  pointer-events: auto; -webkit-tap-highlight-color: transparent;
+  font-family: var(--mono); font-size: 10px; letter-spacing: .14em; line-height: 1.25;
+  color: var(--ink-dim); background: rgba(20,18,12,.66);
+  border: 1.5px solid var(--edge); border-radius: 50%;
+  width: 74px; height: 74px; padding: 0; cursor: pointer;
+}
+.tbtn:active { background: rgba(60,52,32,.85); color: var(--ink); }
+.tbtn.small { width: 58px; height: 58px; font-size: 9px; }
+/* The fire-fighting button is dark until there are flames within reach. */
+.tbtn.douse.live {
+  color: var(--amber); border-color: rgba(221,164,63,.75);
+  background: rgba(70,44,14,.7); animation: ammoLow 1s ease-in-out infinite;
+}
+.tbtn.pause {
+  position: absolute; width: 44px; height: 44px; font-size: 13px; letter-spacing: 0;
+  top: calc(12px + env(safe-area-inset-top)); left: calc(12px + env(safe-area-inset-left));
+}
+
+/* Rotate prompt. Portrait leaves the compound too narrow to read. */
+#rotate { position: fixed; inset: 0; z-index: 40; display: none; background: #0b0d07;
+  align-items: center; justify-content: center; text-align: center; }
+.rotate-inner { font-size: 12px; letter-spacing: .3em; color: var(--khaki); }
+.rotate-inner p { font-size: 11px; letter-spacing: .1em; color: var(--ink-dim); margin-top: 12px; }
+.rotate-icon {
+  width: 74px; height: 46px; margin: 0 auto 26px; border: 2px solid var(--edge); border-radius: 6px;
+  animation: rotateHint 2.4s ease-in-out infinite;
+}
+@keyframes rotateHint { 0%, 40% { transform: rotate(90deg); } 60%, 100% { transform: rotate(0); } }
+@media (orientation: portrait) { body.touch #rotate { display: flex; } }
+
+/* A phone in landscape has very little height. Give the mission back its room.
+   Keyed off body.touch — the class the input layer sets — so the CSS and the
+   JS agree on what a touch device is instead of testing two different things. */
+@media (max-height: 520px) {
+
+  body.touch .hud-title { font-size: 11px; margin-bottom: 6px; }
+  body.touch .hud-objective { font-size: 11px; max-width: 230px; }
+  body.touch .hud-time { font-size: 24px; }
+  body.touch .hud-sub { font-size: 9px; }
+  body.touch .bar-track, body.touch .pips { width: 132px; height: 10px; }
+  body.touch .pips i { width: 10px; height: 10px; }
+  body.touch .meter { gap: 7px; margin-top: 5px; }
+  body.touch .meter .hud-label { width: 52px; }
+  body.touch .hud-label { font-size: 8.5px; letter-spacing: .2em; }
+  body.touch .meter-num { font-size: 10px; width: 34px; }
+  body.touch .ammo-line { font-size: 24px; }
+  body.touch .ammo-line span:last-child { font-size: 14px; }
+  body.touch #minimap { width: 118px; height: 88px; }
+  body.touch .ghost-btn { font-size: 8.5px; padding: 3px 7px; }
+  body.touch .tl { top: 10px; left: calc(68px + env(safe-area-inset-left)); }  /* clear of the pause button */
+  body.touch .bl { bottom: calc(10px + env(safe-area-inset-bottom)); left: calc(14px + env(safe-area-inset-left)); }
+  body.touch .br { bottom: calc(10px + env(safe-area-inset-bottom)); right: calc(104px + env(safe-area-inset-right)); }
+  body.touch .tr { right: calc(14px + env(safe-area-inset-right)); }
+  body.touch #banner { font-size: 26px; }
+  body.touch .tbtn { width: 62px; height: 62px; }
+  body.touch .tbtn.small { width: 50px; height: 50px; }
+  /* the compact .tbtn rule outranks .tbtn.pause, so restate the pause size */
+  body.touch .tbtn.pause { width: 44px; height: 44px; }
+  body.touch .tbtns { bottom: calc(14px + env(safe-area-inset-bottom)); gap: 9px; }
+  body.touch .panel { padding: 20px 22px; }
+  body.touch .screen { padding: 12px; }
+
+}

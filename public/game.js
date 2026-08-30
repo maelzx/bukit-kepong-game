@@ -59,6 +59,7 @@ const Game = {
     this.initAmbient();
     Bullets.init();
     Input.init(this.canvas);
+    Touch.init({ pause: () => this.setPaused(true) });
 
     UI.init({
       start: () => this.startRun(),
@@ -140,20 +141,23 @@ const Game = {
     UI.resetCaches();
     UI.hideAll();
     document.body.classList.add('in-game');
+    document.body.classList.add('playing');
     UI.banner('BUKIT KEPONG', '23 FEBRUARY 1950 — 04:15', 3.4);
   },
 
   toMenu() {
     this.state = 'title';
-    document.body.classList.remove('in-game');
+    Touch.release();
+    document.body.classList.remove('in-game', 'playing');
     UI.show('title');
   },
 
   setPaused(p) {
     if (this.state !== 'playing' && this.state !== 'paused') return;
     this.state = p ? 'paused' : 'playing';
-    if (p) UI.show('pause'); else UI.hideAll();
+    if (p) { Touch.release(); UI.show('pause'); } else UI.hideAll();
     document.body.classList.add('in-game');
+    document.body.classList.toggle('playing', !p);
   },
 
   /* ----------------------------------------------------------- ambience -- */
@@ -250,6 +254,7 @@ const Game = {
     this.elapsed += dt;
     this.missionTime -= dt;
 
+    Touch.update(this);
     this.updateWaves(dt);
 
     this.player.update(dt, this);
@@ -562,6 +567,8 @@ const Game = {
   win() {
     if (this.state !== 'playing') return;
     this.state = 'win';
+    Touch.release();
+    document.body.classList.remove('playing');
     Audio2.victory();
     this.finishScore();
     UI.fillStats(this, UI.el.stats, UI.el.winScore);
@@ -578,6 +585,8 @@ const Game = {
   lose(title) {
     if (this.state !== 'playing') return;
     this.state = 'over';
+    Touch.release();
+    document.body.classList.remove('playing');
     Audio2.defeat();
     document.getElementById('over-title').textContent = title;
     this.finishScore();

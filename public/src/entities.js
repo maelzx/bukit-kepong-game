@@ -362,16 +362,21 @@ class Player extends Actor {
     }
 
     /* --- movement --- */
-    let mx = 0, my = 0;
-    if (Input.down('a', 'arrowleft')) mx -= 1;
-    if (Input.down('d', 'arrowright')) mx += 1;
-    if (Input.down('w', 'arrowup')) my -= 1;
-    if (Input.down('s', 'arrowdown')) my += 1;
+    let mx = 0, my = 0, throttle = 1;
+    if (Input.moveVec) {
+      mx = Input.moveVec.x; my = Input.moveVec.y;
+      throttle = Input.moveVec.mag;      // a small lean is a careful step
+    } else {
+      if (Input.down('a', 'arrowleft')) mx -= 1;
+      if (Input.down('d', 'arrowright')) mx += 1;
+      if (Input.down('w', 'arrowup')) my -= 1;
+      if (Input.down('s', 'arrowdown')) my += 1;
+    }
     const len = Math.hypot(mx, my);
     this.moving = len > 0;
     if (this.moving) {
       mx /= len; my /= len;
-      const sp = CFG.PLAYER_SPEED * this.speedMod * (this.reloading > 0 ? 0.82 : 1);
+      const sp = CFG.PLAYER_SPEED * this.speedMod * throttle * (this.reloading > 0 ? 0.82 : 1);
       this.x += mx * sp * dt; this.y += my * sp * dt;
       this.walk += dt * 9;
       if (Math.sin(this.walk * 2) > 0.96) FX.spawn(this.x, this.y + 6, rand(-10, 10), rand(-6, 6),
@@ -447,8 +452,10 @@ class Player extends Actor {
       const d = dist(this.x, this.y, e.x, e.y);
       if (d > RANGE) continue;
       if (!World.lineOfSight(this.x, this.y, e.x, e.y)) continue;
+      // A thumb resting off the aim stick is not pointing anywhere, so fall
+      // back to picking the nearest threat rather than the one dead ahead.
       const off = Math.abs(angDiff(aim, Math.atan2(e.y - this.y, e.x - this.x)));
-      const score = off * 260 + d;
+      const score = off * (Input.aimActive ? 260 : 45) + d;
       if (score < bs) { bs = score; best = e; }
     }
     return best;

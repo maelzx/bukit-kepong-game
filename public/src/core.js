@@ -160,6 +160,12 @@ const Input = {
   pressed: Object.create(null),   // one-frame edge triggers
   mouse: { x: 0, y: 0, wx: 0, wy: 0, down: false, clicked: false },
 
+  // Analogue movement, when something is driving it (the touch stick). Null
+  // means fall back to the keys. `aimActive` says whether the player is
+  // actively pointing at something — a mouse always is, a lifted thumb is not.
+  moveVec: null,
+  aimActive: true,
+
   init(canvas) {
     addEventListener('keydown', e => {
       const k = e.key.toLowerCase();

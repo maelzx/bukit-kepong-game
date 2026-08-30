@@ -91,7 +91,7 @@ function loadGame() {
   const ctx = vm.createContext(sandbox);
   const files = [
     'src/core.js', 'src/audio.js', 'src/world.js', 'src/fx.js',
-    'src/entities.js', 'src/score.js', 'src/ui.js', 'game.js',
+    'src/entities.js', 'src/touch.js', 'src/score.js', 'src/ui.js', 'game.js',
   ];
   for (const f of files) {
     const code = fs.readFileSync(path.join(ROOT, f), 'utf8');
@@ -100,7 +100,7 @@ function loadGame() {
   // const/class declarations live in the context's lexical scope, not on the
   // global object — re-export them so the harness can reach them.
   vm.runInContext(
-    'globalThis.api = { CFG, DIFFICULTIES, Game, World, FX, Bullets, Input, UI, Audio2, Score, ' +
+    'globalThis.api = { CFG, DIFFICULTIES, Game, World, FX, Bullets, Input, UI, Audio2, Score, Touch, ' +
     'Player, Police, Enemy, WEAPONS, dist, dist2, rand, chance, clamp };',
     ctx, { filename: 'export' });
   sandbox.api.Game.init();
