@@ -9,7 +9,8 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 
-const ROOT = path.join(__dirname, '..');
+// The deployable site lives in public/; this tool sits outside it.
+const ROOT = path.join(__dirname, '..', 'public');
 
 /* --------------------------------- stubs -------------------------------- */
 const noop = () => {};
@@ -88,7 +89,10 @@ function makeEnv() {
 function loadGame() {
   const sandbox = makeEnv();
   const ctx = vm.createContext(sandbox);
-  const files = ['src/core.js', 'src/audio.js', 'src/world.js', 'src/fx.js', 'src/entities.js', 'src/ui.js', 'game.js'];
+  const files = [
+    'src/core.js', 'src/audio.js', 'src/world.js', 'src/fx.js',
+    'src/entities.js', 'src/score.js', 'src/ui.js', 'game.js',
+  ];
   for (const f of files) {
     const code = fs.readFileSync(path.join(ROOT, f), 'utf8');
     vm.runInContext(code, ctx, { filename: f });
@@ -96,7 +100,7 @@ function loadGame() {
   // const/class declarations live in the context's lexical scope, not on the
   // global object — re-export them so the harness can reach them.
   vm.runInContext(
-    'globalThis.api = { CFG, DIFFICULTIES, Game, World, FX, Bullets, Input, UI, Audio2, ' +
+    'globalThis.api = { CFG, DIFFICULTIES, Game, World, FX, Bullets, Input, UI, Audio2, Score, ' +
     'Player, Police, Enemy, WEAPONS, dist, dist2, rand, chance, clamp };',
     ctx, { filename: 'export' });
   sandbox.api.Game.init();

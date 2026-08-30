@@ -11,7 +11,8 @@ no dependencies, no external assets.
 
 ## Running it
 
-Open `index.html` in any modern browser. That's the whole install.
+Open `public/index.html` in any modern browser. That's the whole install.
+Everything the game needs is inside `public/`; nothing outside it is served.
 
 Sound is synthesised at runtime with the Web Audio API, so browsers will hold it
 until your first click — press START and audio begins.
@@ -28,7 +29,7 @@ Chosen on the title screen.
 RECRUIT exists so the game can be played for its actual decisions — where to
 stand, which threat to answer, when to leave the firing line to fight a fire —
 without demanding precise aim. Both modes are tuned separately in
-`DIFFICULTIES` at the top of `src/core.js`.
+`DIFFICULTIES` at the top of `public/src/core.js`.
 
 ## Controls
 
@@ -59,18 +60,32 @@ Hold the station for five minutes against eight waves of communist insurgents.
 
 ## Layout
 
+`public/` is the deployable site — it is exactly what a static host should
+serve, and nothing in it is a build artifact. Everything else in the repository
+is documentation or development tooling and stays out of the deployment.
+
 ```
-index.html      markup + HUD
-style.css       presentation
-game.js         game loop, state machine, wave director, render pipeline
-src/core.js     config, maths, input, camera
-src/world.js    map layout, terrain pre-render, collision, cover
-src/entities.js bullets, figure renderer, Player / Police / Enemy
-src/fx.js       pooled particles, decals, lighting flashes
-src/audio.js    Web Audio synthesis
-src/ui.js       DOM HUD, screens, minimap
-tools/          headless dev tools (not part of the game)
+public/
+  index.html      markup + HUD
+  style.css       presentation
+  game.js         game loop, state machine, wave director, render pipeline
+  src/core.js     config, maths, input, camera
+  src/world.js    map layout, terrain pre-render, collision, cover
+  src/entities.js bullets, figure renderer, Player / Police / Enemy
+  src/fx.js       pooled particles, decals, lighting flashes
+  src/audio.js    Web Audio synthesis
+  src/score.js    end-of-mission scoring and personal bests
+  src/ui.js       DOM HUD, screens, minimap
+tools/            headless dev tools (not part of the game)
 ```
+
+## Deploying
+
+Any static host will do — there is no build step and no server-side code. Point
+the host at `public/` as the output directory and leave the build command empty.
+
+On Cloudflare Pages: framework preset **None**, build command **empty**, build
+output directory **`public`**.
 
 ## Dev tools
 
@@ -83,5 +98,9 @@ node tools/balance.js 8           # mission soaks on CONSTABLE
 node tools/balance.js 8 easy      # ...or on RECRUIT
 ```
 
-Key balance constants live in `src/core.js` (`CFG`) and the `WAVES` table at the
-top of `game.js`. To play a longer mission, raise `CFG.MISSION_DURATION`.
+Key balance constants live in `public/src/core.js` (`CFG`) and the `WAVES` table
+at the top of `public/game.js`. To play a longer mission, raise
+`CFG.MISSION_DURATION`. Scoring weights are in `public/src/score.js` (`SCORE`).
+
+`tools/harness.js` loads the game from `public/`, so any new source file must be
+added to its file list or the headless tests will not see it.
