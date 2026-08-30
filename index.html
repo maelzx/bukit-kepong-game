@@ -107,6 +107,12 @@
       <p><b>Fire.</b> Attackers who reach the walls will try to set the attap alight. A fire
       eats the station's integrity until it is put out — run to the flames and hold
       <b>SPACE</b>. Leaving the firing line to do it is the hardest call you will make.</p>
+      <p><b>Ammunition.</b> You carry what you carry. The section's crate sits on the station
+      veranda — stand at it to fill your pouches. Its stock is finite and is only made up
+      between assaults, so every burst is spent from somewhere.</p>
+      <p><b>Scoring.</b> The run is graded at the end, win or lose: attackers accounted for, the
+      rounds it took to account for them, the building, the section, the fires, the time held.
+      RECRUIT aims and fires for you, so it scores at 0.6&times;.</p>
     </div>
     <div class="btn-row"><button id="btn-howto-back" class="btn">BACK</button></div>
   </div>
@@ -127,6 +133,7 @@
   <div class="panel">
     <div class="stamp red">POSITION LOST</div>
     <h2 id="over-title">THE STATION HAS FALLEN</h2>
+    <div id="over-score" class="score"></div>
     <ul id="over-stats" class="stats"></ul>
     <div class="btn-row">
       <button id="btn-retry" class="btn primary">RETRY</button>
@@ -139,6 +146,7 @@
   <div class="panel wide">
     <div class="stamp">DAWN · 23 FEBRUARY 1950</div>
     <h2>MISSION COMPLETE</h2>
+    <div id="win-score" class="score"></div>
     <ul id="stats-list" class="stats"></ul>
     <div class="note">
       <h3>HISTORICAL NOTE</h3>
@@ -165,6 +173,7 @@
 <script src="src/world.js"></script>
 <script src="src/fx.js"></script>
 <script src="src/entities.js"></script>
+<script src="src/score.js"></script>
 <script src="src/ui.js"></script>
 <script src="game.js"></script>
 </body>

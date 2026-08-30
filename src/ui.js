@@ -28,6 +28,7 @@ const UI = {
       assist: $('assist-chip'),
       diffRow: $('difficulty-row'), diffNote: $('difficulty-note'),
       stats: $('stats-list'), overStats: $('over-stats'),
+      winScore: $('win-score'), overScore: $('over-score'),
       lowHealth: $('low-health'),
     };
     this.minimapCtx = this.el.minimap.getContext('2d');
@@ -184,16 +185,27 @@ const UI = {
     }
   },
 
-  fillStats(g, node) {
-    const rows = [
-      ['Difficulty', g.difficulty.name],
-      ['Insurgents accounted for', g.stats.kills],
-      ['Shots fired', g.stats.shots],
-      ['Accuracy', g.stats.shots ? Math.round(100 * g.stats.hits / g.stats.shots) + '%' : '—'],
-      ['Constables lost', g.stats.policeLost + ' of ' + g.stats.policeTotal],
-      ['Station integrity', Math.max(0, Math.round(100 * g.stationHp / CFG.STATION_HP)) + '%'],
-      ['Time held', `${Math.floor(g.elapsed / 60)}:${String(Math.floor(g.elapsed % 60)).padStart(2, '0')}`],
-    ];
-    node.innerHTML = rows.map(([k, v]) => `<li><span>${k}</span><b>${v}</b></li>`).join('');
+  /**
+   * After-action panel. The breakdown carries the points for every line, so a
+   * player can see that the run was decided by ammunition discipline or by the
+   * building rather than by a single number appearing out of nowhere.
+   */
+  fillStats(g, node, scoreNode) {
+    const sc = g.score || Score.compute(g);
+    const sign = n => (n > 0 ? `+${n}` : String(n));
+
+    const rows = sc.lines.map(([label, value, pts]) =>
+      `<li><span>${label}</span><b>${value}</b><em class="${pts > 0 ? 'up' : pts < 0 ? 'down' : 'nil'}">${pts ? sign(pts) : '·'}</em></li>`);
+    rows.push(`<li class="sum"><span>Subtotal</span><b></b><em>${sc.subtotal}</em></li>`);
+    rows.push(`<li class="sum"><span>${sc.difficulty.name} multiplier</span><b></b><em>\u00d7${sc.mult}</em></li>`);
+    node.innerHTML = rows.join('');
+
+    if (!scoreNode) return;
+    const best = sc.isBest ? '<div class="best new">NEW PERSONAL BEST</div>'
+      : sc.best ? `<div class="best">PERSONAL BEST · ${sc.best}</div>` : '';
+    scoreNode.innerHTML =
+      `<div class="score-label">FINAL SCORE · ${sc.difficulty.name}</div>` +
+      `<div class="score-total">${sc.total}</div>` +
+      `<div class="citation">${sc.citation}</div>${best}`;
   },
 };

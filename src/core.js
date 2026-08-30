@@ -42,17 +42,19 @@ const CFG = {
 const DIFFICULTIES = {
   easy: {
     key: 'easy', name: 'RECRUIT',
-    blurb: 'Assisted aim and automatic fire. Fewer attackers, and you take less punishment.',
+    blurb: 'Assisted aim and automatic fire. Fewer attackers, less punishment — and a 0.6\u00d7 score.',
     autoAim: true, autoFire: true,
     playerHp: 190, damageTaken: 0.6, spread: 0.55,
     stationDamage: 0.7, maxAlive: 9, waveScale: 0.75,
+    scoreMul: 0.6,            // the weapon is being aimed for you — it counts for less
   },
   normal: {
     key: 'normal', name: 'CONSTABLE',
-    blurb: 'You aim and fire yourself. The section holds the compound on its own.',
+    blurb: 'You aim and fire yourself. The section holds the compound on its own. Full score.',
     autoAim: false, autoFire: false,
     playerHp: 150, damageTaken: 1, spread: 1,
     stationDamage: 1, maxAlive: 12, waveScale: 1,
+    scoreMul: 1,
   },
 };
 

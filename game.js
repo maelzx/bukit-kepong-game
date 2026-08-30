@@ -43,7 +43,8 @@ const Game = {
   hitMarker: 0, hitMarkerKill: false,
   damageArcs: [],            // {ang, life} — where incoming fire came from
   mist: [], fireflies: [],
-  stats: { kills: 0, shots: 0, hits: 0, policeLost: 0, policeTotal: 0 },
+  stats: { kills: 0, shots: 0, hits: 0, policeLost: 0, policeTotal: 0, firesOut: 0, roundsDrawn: 0 },
+  score: null,              // after-action assessment, filled when the mission ends
 
   /* =============================================================== boot === */
   init() {
@@ -125,7 +126,11 @@ const Game = {
     this.damageVignette = 0;
     this.damageArcs.length = 0;
     this.hitMarker = 0;
-    this.stats = { kills: 0, shots: 0, hits: 0, policeLost: 0, policeTotal: this.police.length };
+    this.stats = {
+      kills: 0, shots: 0, hits: 0, policeLost: 0, policeTotal: this.police.length,
+      firesOut: 0, roundsDrawn: 0,
+    };
+    this.score = null;
     this.objectiveText = 'Stand to. Hostiles inbound.';
 
     this.camera.x = this.player.x - this.vw / 2;
@@ -432,7 +437,7 @@ const Game = {
     else if (m === dt) fy = S.y + INSET;
     else fy = S.y + S.h - INSET;
 
-    this.fires.push({ x: fx, y: fy, t: rand(0, 6), power: 1 });
+    this.fires.push({ x: fx, y: fy, t: rand(0, 6), power: 1, fought: false });
     Audio2.explosion(fx, fy);
     FX.explosion(fx, fy, 40);
     this.camera.addShake(7);
@@ -456,6 +461,7 @@ const Game = {
 
       if (fighting && dist2(p.x, p.y, f.x, f.y) < 72 * 72) {
         f.power -= dt * 0.62;
+        f.fought = true;
         this.fightingFire = true;
         for (let k = 0; k < 2; k++)                     // steam and thrown water
           FX.spawn(f.x + rand(-14, 14), f.y + rand(-14, 14), rand(-30, 30), rand(-70, -20),
@@ -465,6 +471,7 @@ const Game = {
       }
 
       if (f.power <= 0) {
+        if (f.fought) this.stats.firesOut++;
         this.fires.splice(i, 1);
         FX.smoke(f.x, f.y, 4, '150,156,158');
         UI.banner('FIRE OUT', 'Back to your post', 1.8);
@@ -505,6 +512,7 @@ const Game = {
     c.acc -= take;
     p.reserve += take;
     c.stock -= take;
+    this.stats.roundsDrawn += take;
     if (p.ammo === 0 && p.reloading <= 0) p.startReload();
     if (chance(dt * 26)) FX.spawn(c.x + rand(-10, 10), c.y - 6, rand(-18, 18), rand(-40, -14),
       { life: 0.4, size: 2.6, color: '214,186,120', drag: 2, fade: 0.5 });
@@ -555,8 +563,16 @@ const Game = {
     if (this.state !== 'playing') return;
     this.state = 'win';
     Audio2.victory();
-    UI.fillStats(this, UI.el.stats);
+    this.finishScore();
+    UI.fillStats(this, UI.el.stats, UI.el.winScore);
     UI.show('win');
+  },
+
+  /** Grade the run and remember it if it is the player's best on this setting. */
+  finishScore() {
+    this.score = Score.compute(this);
+    this.score.best = Score.best(this.difficulty);
+    this.score.isBest = Score.record(this.difficulty, this.score.total);
   },
 
   lose(title) {
@@ -564,7 +580,8 @@ const Game = {
     this.state = 'over';
     Audio2.defeat();
     document.getElementById('over-title').textContent = title;
-    UI.fillStats(this, UI.el.overStats);
+    this.finishScore();
+    UI.fillStats(this, UI.el.overStats, UI.el.overScore);
     setTimeout(() => { if (this.state === 'over') UI.show('over'); }, 900);
   },
 

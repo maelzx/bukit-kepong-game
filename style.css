@@ -230,12 +230,37 @@ h3 { font-size: 11px; letter-spacing: .3em; color: var(--khaki); margin: 0 0 8px
 .brief { text-align: left; font-size: 12px; line-height: 1.85; color: var(--ink-dim); margin-bottom: 22px; }
 .brief b { color: var(--khaki); font-weight: 400; }
 
-.stats { list-style: none; padding: 0; margin: 22px 0; text-align: left; }
+.stats { list-style: none; padding: 0; margin: 18px 0 22px; text-align: left; }
 .stats li {
-  display: flex; justify-content: space-between; padding: 8px 2px;
+  display: flex; align-items: baseline; gap: 10px; padding: 8px 2px;
   border-bottom: 1px dashed rgba(190,165,106,.16); font-size: 12px; color: var(--ink-dim);
 }
-.stats b { color: var(--ink); font-weight: 400; }
+.stats li span { flex: 1; }
+.stats b { color: var(--ink); font-weight: 400; text-align: right; }
+/* Points column of the after-action breakdown. */
+.stats em {
+  font-style: normal; min-width: 68px; text-align: right;
+  font-family: var(--slab); font-size: 13px; color: var(--ink-dim);
+}
+.stats em.up { color: var(--green); }
+.stats em.down { color: var(--blood); }
+.stats em.nil { color: rgba(169,154,120,.4); }
+.stats li.sum { border-bottom: none; border-top: 1px solid var(--edge); color: var(--ink); }
+.stats li.sum em { color: var(--ink); }
+
+/* --- Final score ------------------------------------------------------- */
+.score { text-align: center; margin: 20px 0 4px; }
+.score-label { font-size: 10px; letter-spacing: .28em; color: var(--ink-dim); }
+.score-total {
+  font-family: var(--slab); font-size: 58px; line-height: 1.1; color: var(--amber);
+  letter-spacing: .02em; text-shadow: 0 2px 18px rgba(221,164,63,.28);
+}
+.score .citation {
+  font-size: 11px; letter-spacing: .3em; color: var(--khaki);
+  border-top: 1px solid var(--edge); display: inline-block; padding-top: 8px; margin-top: 2px;
+}
+.score .best { font-size: 10px; letter-spacing: .2em; color: var(--ink-dim); margin-top: 10px; }
+.score .best.new { color: var(--amber); animation: ammoLow 1.4s ease-in-out infinite; }
 
 .note {
   text-align: left; border-top: 1px solid var(--edge); padding-top: 18px; margin-top: 8px;
