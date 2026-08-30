@@ -15,7 +15,7 @@ const UI = {
       hud: $('hud'),
       health: $('bar-health'), healthTxt: $('txt-health'),
       station: $('bar-station'), stationTxt: $('txt-station'),
-      ammo: $('txt-ammo'), reserve: $('txt-reserve'), reload: $('reload-ind'), reloadFill: $('reload-fill'),
+      ammo: $('txt-ammo'), reserve: $('txt-reserve'), ammoLine: $('ammo-line'), reload: $('reload-ind'), reloadFill: $('reload-fill'),
       wave: $('txt-wave'), enemies: $('txt-enemies'), time: $('txt-time'),
       objective: $('txt-objective'), banner: $('banner'), bannerSub: $('banner-sub'),
       screens: {
@@ -63,7 +63,10 @@ const UI = {
     });
   },
 
-  resetCaches() { this._cache = {}; this._pipCount = -1; this._pipUp = -1; this._assistOn = null; },
+  resetCaches() {
+    this._cache = {}; this._pipCount = -1; this._pipUp = -1;
+    this._assistOn = null; this._ammoLow = null;
+  },
 
   show(name) {
     for (const k in this.el.screens) this.el.screens[k].classList.toggle('active', k === name);
@@ -110,6 +113,8 @@ const UI = {
 
     this.setText('ammo', this.el.ammo, String(p.ammo).padStart(2, '0'));
     this.setText('res', this.el.reserve, String(p.reserve));
+    const low = p.reserve < p.weapon.mag * 2;
+    if (this._ammoLow !== low) { this._ammoLow = low; this.el.ammoLine.classList.toggle('low', low); }
     const reloading = p.reloading > 0;
     if (this.el.reload.classList.contains('on') !== reloading) this.el.reload.classList.toggle('on', reloading);
     if (reloading) this.el.reloadFill.style.width = (100 * (1 - p.reloading / p.weapon.reload)) + '%';
@@ -161,6 +166,10 @@ const UI = {
     for (const f of g.fires) {
       c.fillStyle = 'rgba(255,150,50,0.9)';
       c.beginPath(); c.arc(f.x * sx, f.y * sy, 2.6, 0, TAU); c.fill();
+    }
+    if (g.ammoCrate.stock > 0) {
+      c.fillStyle = 'rgba(214,186,120,0.95)';
+      c.fillRect(g.ammoCrate.x * sx - 2, g.ammoCrate.y * sy - 1.5, 4, 3);
     }
     for (const d of g.defenders) {
       if (!d.alive) continue;

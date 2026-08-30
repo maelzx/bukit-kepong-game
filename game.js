@@ -32,6 +32,7 @@ const Game = {
   player: null,
   police: [], enemies: [], defenders: [],
   fires: [],
+  ammoCrate: { x: 0, y: 0, stock: 0, draw: 0, acc: 0 },   // the section's ammunition reserve
   stationHp: CFG.STATION_HP,
   missionTime: CFG.MISSION_DURATION,
   elapsed: 0,
@@ -108,6 +109,11 @@ const Game = {
     this.defenders = [this.player, ...this.police];
     this.enemies = [];
     this.fires = [];
+
+    // Ammunition crate on the veranda, between the station and the south
+    // sandbags — close enough to reach under fire, far enough that topping up
+    // costs you your firing position.
+    this.ammoCrate = { x: S.x + 46, y: S.y + S.h + 26, stock: CFG.CRATE_START, draw: 0, acc: 0 };
 
     this.stationHp = CFG.STATION_HP;
     this.missionTime = CFG.MISSION_DURATION;
@@ -255,6 +261,7 @@ const Game = {
     }
     this.hitMarker = Math.max(0, this.hitMarker - dt);
     this.updateFires(dt);
+    this.updateAmmoCrate(dt);
     this.bakeCorpses();
 
     this.camera.follow(this.player, Input.mouse.wx, Input.mouse.wy, this.vw, this.vh, dt);
@@ -294,9 +301,12 @@ const Game = {
 
     if (!this.waveActive) {
       this.waveGap -= dt;
+      const secs = Math.max(0, Math.ceil(this.waveGap));
       this.objectiveText = this.waveIndex === 0
-        ? `Take position. Contact in ${Math.max(0, Math.ceil(this.waveGap))}s.`
-        : `Reload and hold. Next assault in ${Math.max(0, Math.ceil(this.waveGap))}s.`;
+        ? `Take position. Contact in ${secs}s.`
+        : this.lowOnAmmo()
+          ? `Draw ammunition at the station. Next assault in ${secs}s.`
+          : `Reload and hold. Next assault in ${secs}s.`;
       if (this.waveGap <= 0) this.beginWave();
       return;
     }
@@ -304,7 +314,9 @@ const Game = {
     this.waveTimer += dt;
     this.objectiveText = this.fires.length
       ? 'THE STATION IS ALIGHT — hold SPACE at the flames.'
-      : 'DEFEND THE POLICE STATION.';
+      : this.lowOnAmmo()
+        ? 'AMMUNITION LOW — draw from the crate at the station.'
+        : 'DEFEND THE POLICE STATION.';
 
     if (this.spawnQueue > 0 && aliveCount < this.difficulty.maxAlive) {
       this.spawnTimer -= dt;
@@ -350,7 +362,13 @@ const Game = {
   endWave() {
     this.waveActive = false;
     this.waveGap = this.wave.gap || 9;
-    UI.banner('ASSAULT REPULSED', 'Reload. They will come again.', 2.4);
+    // The lull is when a fresh box is broken open and carried to the veranda.
+    const c = this.ammoCrate;
+    const before = c.stock;
+    c.stock = Math.min(CFG.CRATE_CAP, c.stock + CFG.CRATE_PER_WAVE);
+    UI.banner('ASSAULT REPULSED', c.stock > before
+      ? 'Ammunition up at the station. Draw what you need.'
+      : 'Reload. They will come again.', 2.4);
   },
 
   spawnEnemy() {
@@ -458,6 +476,40 @@ const Game = {
     if (this.fires.length && this.stationHp <= 0) this.lose('THE STATION HAS FALLEN');
   },
 
+  /** True once the player is down to roughly two magazines in reserve. */
+  lowOnAmmo() {
+    const p = this.player;
+    return !!p && p.alive && p.reserve < p.weapon.mag * 2 && this.ammoCrate.stock > 0;
+  },
+
+  /**
+   * Drawing from the ammunition crate. Standing at it refills your pouches
+   * from the section's stock; the stock itself is finite and is only made up
+   * between assaults, so ammunition stays a thing you spend rather than a
+   * resource that quietly refills itself.
+   */
+  updateAmmoCrate(dt) {
+    const c = this.ammoCrate, p = this.player;
+    c.draw = Math.max(0, c.draw - dt * 3);
+    if (!p.alive || c.stock <= 0) return;
+
+    const need = p.weapon.reserve - p.reserve;
+    if (need <= 0) return;
+    if (dist2(p.x, p.y, c.x, c.y) > CFG.CRATE_RADIUS * CFG.CRATE_RADIUS) return;
+
+    c.draw = 1;
+    // Rounds move whole, never in fractions of a bullet.
+    c.acc += CFG.CRATE_RATE * dt;
+    const take = Math.min(need, c.stock, Math.floor(c.acc));
+    if (take <= 0) return;
+    c.acc -= take;
+    p.reserve += take;
+    c.stock -= take;
+    if (p.ammo === 0 && p.reloading <= 0) p.startReload();
+    if (chance(dt * 26)) FX.spawn(c.x + rand(-10, 10), c.y - 6, rand(-18, 18), rand(-40, -14),
+      { life: 0.4, size: 2.6, color: '214,186,120', drag: 2, fade: 0.5 });
+  },
+
   onEnemyDown(e) {
     this.stats.kills++;
     FX.text(e.x, e.y - 18, '✕', '#e8a45c', 15);
@@ -534,6 +586,7 @@ const Game = {
     World.drawGround(ctx, view);
     FX.drawDecals(ctx, view);
     World.drawStructures(ctx, this.time, this.stationHp / CFG.STATION_HP);
+    this.drawAmmoCrate(ctx);
     this.drawFires(ctx);
 
     /* --- actors, sorted back-to-front so overlap reads correctly --- */
@@ -664,6 +717,51 @@ const Game = {
     ctx.restore();
   },
 
+  /**
+   * A wooden ammunition box on the veranda. It pulses while you have room in
+   * your pouches and there is stock left, so it reads as somewhere to go
+   * without needing an icon bolted over the world.
+   */
+  drawAmmoCrate(ctx) {
+    const c = this.ammoCrate, p = this.player;
+    const W = 34, H = 20;
+    const empty = c.stock <= 0;
+    const wanted = !empty && p && p.alive && p.reserve < p.weapon.reserve;
+
+    if (wanted) {
+      const pulse = 0.5 + Math.sin(this.time * 4) * 0.5;
+      const r = CFG.CRATE_RADIUS * (0.9 + pulse * 0.12);
+      const g = ctx.createRadialGradient(c.x, c.y, r * 0.55, c.x, c.y, r);
+      g.addColorStop(0, 'rgba(214,186,120,0)');
+      g.addColorStop(1, `rgba(214,186,120,${0.10 + pulse * 0.10 + c.draw * 0.16})`);
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(c.x, c.y, r, 0, TAU); ctx.fill();
+    }
+
+    ctx.save();
+    ctx.translate(c.x, c.y);
+    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    ctx.beginPath(); ctx.ellipse(2, H * 0.42, W * 0.58, H * 0.34, 0, 0, TAU); ctx.fill();
+
+    ctx.fillStyle = empty ? '#4a412e' : '#6b5732';           // crate body
+    ctx.fillRect(-W / 2, -H / 2, W, H);
+    ctx.fillStyle = empty ? '#5a4f39' : '#846b3e';           // lid
+    ctx.fillRect(-W / 2, -H / 2 - 4, W, 6);
+    ctx.strokeStyle = 'rgba(30,24,16,0.75)'; ctx.lineWidth = 1.4;
+    ctx.strokeRect(-W / 2, -H / 2 - 4, W, H + 4);
+    ctx.strokeStyle = 'rgba(40,32,20,0.6)';                  // banding
+    ctx.beginPath();
+    ctx.moveTo(-W / 2 + 7, -H / 2); ctx.lineTo(-W / 2 + 7, H / 2);
+    ctx.moveTo(W / 2 - 7, -H / 2); ctx.lineTo(W / 2 - 7, H / 2);
+    ctx.stroke();
+
+    // Stencilled fraction of the stock left, in the manner of a service box.
+    const frac = clamp(c.stock / CFG.CRATE_CAP, 0, 1);
+    ctx.fillStyle = empty ? 'rgba(120,108,86,0.5)' : 'rgba(226,206,158,0.85)';
+    ctx.fillRect(-W / 2 + 4, H / 2 - 6, (W - 8) * frac, 3);
+    ctx.restore();
+  },
+
   drawFires(ctx) {
     for (const f of this.fires) {
       const s = (0.45 + f.power * 0.55) * (1 + Math.sin(this.time * 9 + f.t) * 0.18);
@@ -743,6 +841,8 @@ const Game = {
     for (const e of this.enemies) if (e.alive) mark(e.x, e.y, '#c9553f', 9, 0.55);
     // Fires are the most urgent thing on the map — flag them harder.
     for (const f of this.fires) mark(f.x, f.y, '#f0a63c', 14, 0.6 + Math.sin(this.time * 8) * 0.3);
+    // Point the way back to the crate, but only when you actually need it.
+    if (this.lowOnAmmo()) mark(this.ammoCrate.x, this.ammoCrate.y, '#d6ba78', 11, 0.75);
     ctx.restore();
   },
 

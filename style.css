@@ -96,6 +96,9 @@ body.in-game #hud { opacity: 1; }
 .ammo-line { font-family: var(--slab); font-size: 32px; line-height: 1; letter-spacing: .04em; }
 .ammo-line i { color: var(--ink-dim); font-style: normal; font-size: 20px; margin: 0 4px; }
 .ammo-line span:last-child { font-size: 18px; color: var(--ink-dim); }
+/* Reserve turns warm and breathes once you are down to your last magazines. */
+.ammo-line.low span:last-child { color: #e0a45c; animation: ammoLow 1.1s ease-in-out infinite; }
+@keyframes ammoLow { 50% { opacity: .45; } }
 .reload { height: 16px; margin-top: 6px; opacity: 0; transition: opacity .12s; }
 .reload.on { opacity: 1; }
 .reload span { font-size: 10px; letter-spacing: .24em; color: var(--amber); }

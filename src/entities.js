@@ -342,6 +342,8 @@ class Player extends Actor {
     this.speedMod = 1;
     this.heat = 0;
     this.lockTarget = null;      // enemy the aim assist is currently tracking
+    this.burst = 0;              // rounds sent in the current automatic burst
+    this.burstRest = 0;          // pause between bursts, seconds
     this.hurtCooldown = 0;
     this.palette = {
       shirt: '#867a52', shorts: '#4c4630', skin: '#a3754c',
@@ -391,10 +393,22 @@ class Player extends Actor {
       this.look = Math.atan2(Input.mouse.wy - this.y, Input.mouse.wx - this.x);
     }
 
-    /* --- firing --- */
+    /* --- firing ---
+       The assisted trigger fires short bursts at close range rather than
+       holding the Sten open, and it lets go entirely once the crate is dry —
+       a held trigger empties 256 rounds in half a minute. Held bursts are what
+       a section actually does with a submachine gun, and it leaves the last
+       magazine under the player's own thumb. */
+    const AUTO_RANGE = 430, BURST_ROUNDS = 4, BURST_REST = 0.34;
+    this.burstRest = Math.max(0, this.burstRest - dt);
+
     const onTarget = lock && Math.abs(angDiff(this.look,
       Math.atan2(lock.y - this.y, lock.x - this.x))) < 0.2;
-    const wantsFire = Input.mouse.down || (D.autoFire && onTarget);
+    if (!onTarget) this.burst = 0;
+    const autoFiring = D.autoFire && onTarget && this.burstRest <= 0 &&
+      (this.reserve > 0 || game.ammoCrate.stock > 0) &&
+      dist(this.x, this.y, lock.x, lock.y) < AUTO_RANGE;
+    const wantsFire = Input.mouse.down || autoFiring;
 
     if (wantsFire && this.reloading <= 0) {
       if (this.ammo > 0) {
@@ -404,6 +418,10 @@ class Player extends Actor {
           game.camera.addShake(1.6);
           Audio2.playerShot(this.x, this.y);
           game.stats.shots++;
+          if (autoFiring && !Input.mouse.down && ++this.burst >= BURST_ROUNDS) {
+            this.burst = 0;
+            this.burstRest = BURST_REST;
+          }
         }
       } else if (Input.mouse.clicked) {
         Audio2.dryFire();

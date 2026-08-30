@@ -22,6 +22,15 @@ const CFG = {
 
   BULLET_MAX: 900,          // pooled
   PARTICLE_MAX: 1400,       // pooled
+
+  // Ammunition crate on the station veranda — the section's reserve. Without
+  // it a sustained defence simply runs dry, which reads as a dead end rather
+  // than a decision. Restocking is deliberately a walk back to the building.
+  CRATE_RADIUS: 46,         // how close you must stand to draw from it
+  CRATE_START: 260,         // rounds in the crate at stand-to
+  CRATE_PER_WAVE: 150,      // rounds brought up between assaults
+  CRATE_CAP: 420,           // most the crate ever holds
+  CRATE_RATE: 90,           // rounds per second transferred to your pouches
 };
 
 /* ------------------------------ Difficulty --------------------------------
