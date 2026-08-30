@@ -141,7 +141,11 @@ body.in-game #hud { opacity: 1; }
 
 /* ============================= SCREENS ================================= */
 .screen {
-  position: fixed; inset: 0; display: none; align-items: center; justify-content: center;
+  /* align-items:center would overflow the panel in BOTH directions once it is
+     taller than the screen, and the part above the scroll origin can never be
+     reached. An auto margin centres the same way but collapses to zero when
+     there is no room, so the top stays scrollable. */
+  position: fixed; inset: 0; display: none; align-items: flex-start; justify-content: center;
   background:
     radial-gradient(ellipse at 50% 40%, rgba(30,26,16,.55), rgba(6,7,4,.94)),
     repeating-linear-gradient(0deg, rgba(255,255,255,.014) 0 1px, transparent 1px 3px);
@@ -150,6 +154,7 @@ body.in-game #hud { opacity: 1; }
 .screen.active { display: flex; }
 
 .panel {
+  margin: auto;              /* centres while it fits, never clips the top */
   width: min(560px, 94vw); background: var(--panel);
   border: 1px solid var(--edge); padding: 34px 38px;
   box-shadow: 0 24px 70px rgba(0,0,0,.7), inset 0 0 90px rgba(0,0,0,.5);
