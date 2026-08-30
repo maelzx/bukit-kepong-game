@@ -28,6 +28,7 @@ const Game = {
   difficulty: DIFFICULTIES.normal,
   canvas: null, ctx: null, dpr: 1, zoom: 1,
   vw: 0, vh: 0,
+  _lastW: 0, _lastH: 0, _lastDpr: 0,   // last size resize() actually acted on
   camera: null,
   player: null,
   police: [], enemies: [], defenders: [],
@@ -70,6 +71,14 @@ const Game = {
     });
 
     addEventListener('resize', () => this.resize());
+    // iOS does not fire a window resize when the Safari toolbar slides away —
+    // only the visual viewport changes. Without this the canvas keeps the size
+    // it had when the toolbar was showing and the mission sits off-centre.
+    if (window.visualViewport) {
+      visualViewport.addEventListener('resize', () => this.resize());
+      visualViewport.addEventListener('scroll', () => this.resize());
+    }
+    addEventListener('orientationchange', () => setTimeout(() => this.resize(), 120));
     this.resize();
     UI.show('title');
 
@@ -77,13 +86,45 @@ const Game = {
     requestAnimationFrame(t => this.frame(t));
   },
 
+  /**
+   * Publish the height that is genuinely visible, so the full-screen layers
+   * can be sized to it. dvh handles this on its own almost everywhere; this
+   * exists for the cases where it does not, and it costs one property write.
+   */
+  syncViewportHeight() {
+    const vv = window.visualViewport;
+    if (!vv) return;                       // no better answer than dvh here
+    const root = document.documentElement;
+    // While the page is pinch-zoomed — possible on the menus, where zoom is
+    // deliberately left alone — visualViewport reports the zoomed window, not
+    // the screen. Sizing the layers to that would shrink them under the
+    // reader. Hand those cases back to dvh.
+    if (vv.scale > 1.01) root.style.removeProperty('--vph');
+    else root.style.setProperty('--vph', vv.height + 'px');
+  },
+
   resize() {
+    this.syncViewportHeight();
     this.dpr = Math.min(2, window.devicePixelRatio || 1);
     const w = this.canvas.clientWidth || window.innerWidth;
     const h = this.canvas.clientHeight || window.innerHeight;
+    // The toolbar animation fires a stream of viewport events for one change
+    // of size. Reallocating the backing stores on each of them drops frames
+    // for no gain, so nothing below runs unless the size actually moved.
+    if (w === this._lastW && h === this._lastH && this.dpr === this._lastDpr) return;
+    this._lastW = w; this._lastH = h; this._lastDpr = this.dpr;
     this.canvas.width = Math.floor(w * this.dpr);
     this.canvas.height = Math.floor(h * this.dpr);
-    this.zoom = clamp(h / 900, 0.78, 1.55);
+    // The zoom is set by height: roughly 900 world-pixels of depth is the
+    // framing the mission was tuned around. A phone in landscape has nowhere
+    // near that, so it lands on the floor below — and the floor is what the
+    // framing on a phone actually is. 0.62 puts the whole compound, both
+    // perimeter walls and every approach on the glass at once, which is the
+    // read a defence needs; higher and the south fence falls off the bottom.
+    // The lower bound also never lets the view outgrow the map, which would
+    // otherwise strand the camera against a clamp with dead space beside it.
+    const fit = Math.max(w / CFG.WORLD_W, h / CFG.WORLD_H);
+    this.zoom = clamp(h / 900, Math.min(Math.max(0.62, fit), 1.55), 1.55);
     this.vw = w / this.zoom;
     this.vh = h / this.zoom;
     this.light.width = Math.ceil(w / 2);

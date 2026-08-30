@@ -27,7 +27,22 @@ html, body {
 body { cursor: default; }
 body.in-game { cursor: none; }
 
-#game { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; }
+/* 100vh on iOS is the LARGE viewport — the height the page would have if the
+   browser toolbars were hidden — so a canvas sized that way hangs below the
+   glass by however much the toolbar covers. The camera keeps centring the
+   player in the canvas, but the canvas centre is no longer the screen centre:
+   the view rides high and the ground below the player is cut off. 100dvh is
+   the height that is actually visible, and it follows the toolbar as it
+   collapses. 100vh stays as the fallback for browsers without dvh, and
+   --vph — written from visualViewport on every resize — overrides both on
+   the browsers whose dvh lags the toolbar animation. */
+#game { position: fixed; inset: 0; width: 100vw;
+        height: 100vh; height: 100dvh; height: var(--vph, 100dvh); display: block; }
+
+/* Every full-screen layer has the same problem: inset:0 resolves against the
+   large viewport, so the bottom row of the HUD and the thumb controls sit
+   under the toolbar. Pin them all to the visible height. */
+#hud, #touch, .screen, #rotate { height: 100vh; height: 100dvh; height: var(--vph, 100dvh); }
 
 /* Custom crosshair drawn with CSS so it stays crisp */
 body.in-game #game { cursor: none; }
