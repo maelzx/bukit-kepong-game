@@ -64,6 +64,41 @@ const Touch = {
     addEventListener('pointermove', e => this.onMove(e), { passive: false });
     for (const ev of ['pointerup', 'pointercancel'])
       addEventListener(ev, e => this.onUp(e));
+
+    this.blockPageZoom();
+  },
+
+  /**
+   * Twin-stick means two thumbs on the glass at once, and iOS reads any
+   * two-finger touch as a pinch — so the page would zoom mid-firefight and
+   * then refuse to zoom back, because the same controls that caused it also
+   * swallow the pinch that would undo it. touch-action does not stop page
+   * zoom on iOS; only these do.
+   *
+   * Scoped to an actual mission on purpose. On the menus and the after-action
+   * panel the page zooms normally, which keeps the text accessible and leaves
+   * a way out for anyone who arrives already zoomed in: pause, zoom, resume.
+   */
+  blockPageZoom() {
+    const playing = () => document.body.classList.contains('playing');
+
+    // WebKit's own pinch events — the ones that actually drive Safari's zoom.
+    for (const ev of ['gesturestart', 'gesturechange', 'gestureend'])
+      document.addEventListener(ev, e => { if (playing()) e.preventDefault(); }, { passive: false });
+
+    // A second finger landing anywhere during play.
+    document.addEventListener('touchmove', e => {
+      if (playing() && e.touches.length > 1) e.preventDefault();
+    }, { passive: false });
+
+    // Double-tap zoom, which touch-action misses on older WebKit.
+    let lastTap = 0;
+    document.addEventListener('touchend', e => {
+      if (!playing()) return;
+      const now = e.timeStamp;
+      if (now - lastTap < 320) e.preventDefault();
+      lastTap = now;
+    }, { passive: false });
   },
 
   isTouch(e) { return e.pointerType === 'touch' || e.pointerType === 'pen'; },
