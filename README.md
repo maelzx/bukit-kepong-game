@@ -66,8 +66,10 @@ is documentation or development tooling and stays out of the deployment.
 
 ```
 public/
-  index.html      markup + HUD
+  index.html      markup + HUD, link-preview metadata, inline SVG favicon
   style.css       presentation
+  og.jpg          link-preview card (1200x630)
+  apple-touch-icon.png
   game.js         game loop, state machine, wave director, render pipeline
   src/core.js     config, maths, input, camera
   src/world.js    map layout, terrain pre-render, collision, cover
@@ -86,6 +88,11 @@ the host at `public/` as the output directory and leave the build command empty.
 
 On Cloudflare Pages: framework preset **None**, build command **empty**, build
 output directory **`public`**.
+
+The link-preview tags in `index.html` carry absolute URLs, since scrapers do not
+resolve relative ones reliably. They point at `https://bukit-kepong-game.pages.dev`
+— change `og:url`, `og:image`, `twitter:image` and the canonical link together if
+the site moves.
 
 ## Dev tools
 
