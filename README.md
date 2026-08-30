@@ -90,7 +90,7 @@ On Cloudflare Pages: framework preset **None**, build command **empty**, build
 output directory **`public`**.
 
 The link-preview tags in `index.html` carry absolute URLs, since scrapers do not
-resolve relative ones reliably. They point at `https://bukit-kepong-game.pages.dev`
+resolve relative ones reliably. They point at `https://bukit-kepong-game.isha.workers.dev`
 — change `og:url`, `og:image`, `twitter:image` and the canonical link together if
 the site moves.
 
