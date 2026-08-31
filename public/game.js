@@ -312,6 +312,9 @@ const Game = {
       if (this.damageArcs[i].life <= 0) this.damageArcs.splice(i, 1);
     }
     this.hitMarker = Math.max(0, this.hitMarker - dt);
+    // The night bed pulls back while a wave is on the wire and returns in the
+    // lull, which is where most of the tension between waves actually lives.
+    Audio2.setCombat(this.enemies.reduce((n, e) => n + (e.alive ? 1 : 0), 0) / 8);
     this.updateFires(dt);
     this.updateAmmoCrate(dt);
     this.bakeCorpses();

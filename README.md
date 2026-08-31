@@ -2,7 +2,7 @@
 
 A top-down 2D browser game: defend the Bukit Kepong police station through a
 pre-dawn assault. Vanilla HTML5 / CSS3 / JavaScript on a Canvas — no build step,
-no dependencies, no external assets.
+no dependencies, and a single audio file.
 
 > **This is a dramatised interactive interpretation of a historical event, not a
 > documentary reconstruction.** The map, the characters, the wave structure and
@@ -14,8 +14,17 @@ no dependencies, no external assets.
 Open `public/index.html` in any modern browser. That's the whole install.
 Everything the game needs is inside `public/`; nothing outside it is served.
 
-Sound is synthesised at runtime with the Web Audio API, so browsers will hold it
-until your first click — press START and audio begins.
+Every sound effect is synthesised at runtime with the Web Audio API, so browsers
+will hold it until your first click — press START and audio begins.
+
+The one recorded asset is the night jungle ambience in `public/assets/`, which
+is fetched, so opening `index.html` off the disk plays the game without it. Serve
+the directory over HTTP to hear the bed:
+
+    cd public && python3 -m http.server
+
+Its licence is **unverified** — see `public/assets/README.md` before publishing
+this anywhere.
 
 ## Difficulty
 

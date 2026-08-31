@@ -1,6 +1,7 @@
 /* =============================================================================
-   AUDIO — all sound is synthesised with the Web Audio API.
-   No external or copyrighted audio assets are used.
+   AUDIO — every sound effect is synthesised with the Web Audio API. The night
+   ambience bed is the one recorded asset; see assets/README.md, whose licence
+   note is not decoration.
 
    The signal path is
 
@@ -25,6 +26,15 @@ const Audio2 = {
   MAX_VOICES: 28,          // a wave-5 firefight can ask for far more than this
   _active: [],             // end times of the voices currently sounding
   _last: Object.create(null),
+
+  /* Ambience is levelled to a target RMS rather than played at whatever
+     volume it arrived at, so swapping the file for a louder or quieter
+     recording does not require retuning anything here. */
+  AMBIENCE: 'assets/ambience-night.mp3',
+  AMB_RMS: 0.030,
+  AMB_XFADE: 2.0,          // seconds of overlap hiding the loop seam
+  AMB_DUCK: 0.55,          // how far the bed drops under a full-strength wave
+  amb: null, ambGain: null, ambSrc: null,
 
   init() {
     if (this.ctx) return;
@@ -69,6 +79,10 @@ const Audio2 = {
     const d = buf.getChannelData(0);
     for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
     this.noise = buf;
+
+    // init() runs on the first gesture of any kind, which is the earliest
+    // moment a browser will let the jungle start. Menus get it too.
+    this.loadAmbience(this.AMBIENCE);
   },
 
   /**
@@ -223,6 +237,107 @@ const Audio2 = {
     g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
     o.connect(g); this._out(g, x, y, wet);
     o.start(t); o.stop(t + dur + 0.02);
+  },
+
+  /* ------------------------------------------------------------ ambience -- */
+  /**
+   * The bed runs on its own gain so a wave can duck it, but it is otherwise
+   * wired like everything else: through the master, so mute silences it and
+   * pause puts it behind the same glass as the gunfire.
+   *
+   * Failure here is deliberately silent. Ambience is a nicety, and opening
+   * index.html straight off the disk blocks the fetch — the game must still
+   * play in that case, just without the jungle.
+   */
+  loadAmbience(url) {
+    if (!this.ctx || this.ambSrc || this._ambLoading) return;
+    this._ambLoading = true;
+    fetch(url)
+      .then(r => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(r.status))))
+      .then(b => new Promise((ok, no) => this.ctx.decodeAudioData(b, ok, no)))
+      .then(buf => { this.amb = this._seamless(buf, this.AMB_XFADE); this._playAmbience(); })
+      .catch(() => { this._ambLoading = false; });
+  },
+
+  /**
+   * Turns a clip into a loop with no seam. Two things are wrong with looping
+   * a downloaded field recording raw: it usually opens and closes on near
+   * silence, so the bed gasps once a minute, and even trimmed, the join is a
+   * waveform discontinuity that clicks. Trimming fixes the first. The second
+   * needs the end of the clip mixed back over its own beginning, which is
+   * what the equal-power crossfade below does — after it, the last sample of
+   * the loop runs into the first as if the recording had never stopped.
+   */
+  _seamless(src, xfSec) {
+    const sr = src.sampleRate, ch = src.numberOfChannels, n = src.length;
+    const data = [];
+    for (let c = 0; c < ch; c++) data.push(src.getChannelData(c));
+
+    const TH = 0.002;
+    const loud = i => { for (let c = 0; c < ch; c++) if (Math.abs(data[c][i]) > TH) return true; return false; };
+    let s0 = 0, s1 = n - 1;
+    while (s0 < n - 1 && !loud(s0)) s0++;
+    while (s1 > s0 && !loud(s1)) s1--;
+
+    const usable = s1 - s0 + 1;
+    const xf = Math.max(1, Math.min(Math.floor(xfSec * sr), Math.floor(usable / 3)));
+    const len = usable - xf;
+    const out = this.ctx.createBuffer(ch, len, sr);
+
+    for (let c = 0; c < ch; c++) {
+      const d = data[c], o = out.getChannelData(c);
+      for (let i = 0; i < len; i++) o[i] = d[s0 + i];
+      // Fold the xf samples that follow the loop point back over the head.
+      // sin/cos keep the summed power constant through the blend, where a
+      // straight linear fade would dip in the middle.
+      for (let j = 0; j < xf; j++) {
+        const t = j / xf;
+        o[j] = d[s0 + len + j] * Math.cos(t * Math.PI / 2) + o[j] * Math.sin(t * Math.PI / 2);
+      }
+    }
+    this._normalise(out, this.AMB_RMS);
+    return out;
+  },
+
+  /** Level by RMS, not peak: one loud bird should not push a whole bed down. */
+  _normalise(buf, target) {
+    let sum = 0, n = 0, peak = 0;
+    for (let c = 0; c < buf.numberOfChannels; c++) {
+      const d = buf.getChannelData(c);
+      for (let i = 0; i < d.length; i++) { sum += d[i] * d[i]; if (Math.abs(d[i]) > peak) peak = Math.abs(d[i]); }
+      n += d.length;
+    }
+    const rms = Math.sqrt(sum / n);
+    if (rms <= 0) return;
+    const g = Math.min(target / rms, peak > 0 ? 0.9 / peak : 1);
+    for (let c = 0; c < buf.numberOfChannels; c++) {
+      const d = buf.getChannelData(c);
+      for (let i = 0; i < d.length; i++) d[i] *= g;
+    }
+  },
+
+  _playAmbience() {
+    if (!this.amb || this.ambSrc) return;
+    this.ambGain = this.ctx.createGain();
+    this.ambGain.gain.value = 1;
+    this.ambGain.connect(this.master);
+    const src = this.ctx.createBufferSource();
+    src.buffer = this.amb;
+    src.loop = true;
+    src.connect(this.ambGain);
+    src.start(this.ctx.currentTime + 0.05);
+    this.ambSrc = src;
+  },
+
+  /**
+   * Duck the bed under a wave. Not for headroom — the compressor handles
+   * that — but because insects go quiet when a firefight starts, and the
+   * bed coming back up afterwards is what sells the lull between waves.
+   */
+  setCombat(intensity) {
+    if (!this.ambGain) return;
+    const target = 1 - this.AMB_DUCK * clamp(intensity, 0, 1);
+    this.ambGain.gain.setTargetAtTime(target, this.ctx.currentTime, 0.7);
   },
 
   /* ------------------------------------------------------------- effects -- */
