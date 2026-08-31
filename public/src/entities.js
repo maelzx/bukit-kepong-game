@@ -7,6 +7,11 @@
    ========================================================================== */
 'use strict';
 
+/* How close an enemy round has to pass to be heard going by. The player's own
+   radius is 13, so this is roughly three body-widths — near enough to be a
+   near miss, far enough that a firefight is not one continuous whistle. */
+const CRACK_R = 46;
+
 /* -------------------------------------------------------------- weapons --- */
 const WEAPONS = {
   sten: {                       // Sten Mk II 9mm submachine gun — player
@@ -54,6 +59,7 @@ const Bullets = {
     b.dmg = w.damage * dmgScale;
     b.life = 1.1; b.owner = owner; b.friendly = owner.faction === 'police';
     b.len = w.speed > 1200 ? 26 : 18;
+    b.cracked = false;
     return b;
   },
 
@@ -87,6 +93,18 @@ const Bullets = {
         Audio2.hitFlesh(b.x, b.y);
         b.alive = false;
         continue;
+      }
+
+      // --- a round going past the player's head ---------------------------
+      // Only near misses, and only once per bullet. Nothing else in the game
+      // tells you that you are being shot AT rather than shot NEAR, and it is
+      // what makes leaving cover feel like a decision.
+      if (!b.cracked && !b.friendly) {
+        const p = game.player;
+        if (p && p.alive && segCircle(b.px, b.py, b.x, b.y, p.x, p.y, CRACK_R)) {
+          b.cracked = true;
+          Audio2.crackBy(b.x, b.y);
+        }
       }
 
       // --- scenery ------------------------------------------------------

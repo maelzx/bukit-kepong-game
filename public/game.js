@@ -196,6 +196,7 @@ const Game = {
   setPaused(p) {
     if (this.state !== 'playing' && this.state !== 'paused') return;
     this.state = p ? 'paused' : 'playing';
+    Audio2.setMuffled(p);          // the firefight drops behind glass
     if (p) { Touch.release(); UI.show('pause'); } else UI.hideAll();
     document.body.classList.add('in-game');
     document.body.classList.toggle('playing', !p);
