@@ -180,10 +180,40 @@ const World = {
     ent.y = clamp(ent.y, r, CFG.WORLD_H - r);
   },
 
+  /* ---------------------------------------------------------- own cover ---
+   * A prepared position is meant to protect the man in it, not blind him.
+   * Every constable stands 12-13px behind his own sandbags and his muzzle
+   * sits inside them, so treating all cover as opaque left the section unable
+   * to see or shoot in the one direction each post exists to cover — and any
+   * round that did get away was eaten by its own emplacement.
+   *
+   * Sandbags this close to a shooter are his own parapet and he fires over
+   * them. They still stop everything coming the other way, which is the whole
+   * point of digging in.
+   *
+   * Trees deliberately do NOT get this exemption. A chest-high sandbag wall is
+   * built to be fired over; a trunk is full height and you have to come out
+   * from behind it, which the attacking AI already does — it shoots the
+   * building when no defender is in view and pushes forward sooner when it has
+   * nothing to shoot at all. Extending the rule to trees was tried and let
+   * riflemen pour fire from permanent cover: across 48 soak missions the
+   * station fell to 6-13% and held 1/8 at best.
+   */
+  SELF_COVER: 30,
+
+  ownCoverRect(x, y, s) {
+    const dx = Math.max(s.x - x, 0, x - (s.x + s.w));
+    const dy = Math.max(s.y - y, 0, y - (s.y + s.h));
+    return dx * dx + dy * dy < this.SELF_COVER * this.SELF_COVER;
+  },
+
   /** True when nothing solid interrupts the segment. */
   lineOfSight(x1, y1, x2, y2, ignore) {
     for (const b of this.buildings) if (b !== ignore && segRect(x1, y1, x2, y2, b)) return false;
-    for (const s of this.sandbags) if (segRect(x1, y1, x2, y2, s)) return false;
+    for (const s of this.sandbags) {
+      if (this.ownCoverRect(x1, y1, s)) continue;
+      if (segRect(x1, y1, x2, y2, s)) return false;
+    }
     for (const t of this.trees) if (segCircle(x1, y1, x2, y2, t.x, t.y, t.r * 0.6)) return false;
     return true;
   },

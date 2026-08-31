@@ -416,7 +416,10 @@ const Game = {
 
   endWave() {
     this.waveActive = false;
-    this.waveGap = this.wave.gap || 9;
+    // Hold the cadence: a wave broken in 12s earns a longer lull, not an
+    // earlier next assault. The per-wave gap is the floor, never the whole
+    // story.
+    this.waveGap = Math.max(this.wave.gap || 9, CFG.WAVE_CYCLE - this.waveTimer);
     // The lull is when a fresh box is broken open and carried to the veranda.
     const c = this.ammoCrate;
     const before = c.stock;

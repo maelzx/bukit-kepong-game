@@ -60,6 +60,10 @@ const Bullets = {
     b.life = 1.1; b.owner = owner; b.friendly = owner.faction === 'police';
     b.len = w.speed > 1200 ? 26 : 18;
     b.cracked = false;
+    // Where the shooter stood, not where the muzzle sat — the muzzle offset
+    // puts the round inside his own sandbags, which is exactly the cover the
+    // shot has to be allowed through.
+    b.ox = owner.x; b.oy = owner.y;
     return b;
   },
 
@@ -109,7 +113,10 @@ const Bullets = {
 
       // --- scenery ------------------------------------------------------
       let blocked = null, kind = 'dirt';
-      for (const s of World.sandbags) if (segRect(b.px, b.py, b.x, b.y, s)) { blocked = s; kind = 'dirt'; break; }
+      for (const s of World.sandbags) {
+        if (World.ownCoverRect(b.ox, b.oy, s)) continue;      // fired over his own bags
+        if (segRect(b.px, b.py, b.x, b.y, s)) { blocked = s; kind = 'dirt'; break; }
+      }
       if (!blocked) {
         for (const bl of World.buildings) {
           if (segRect(b.px, b.py, b.x, b.y, bl)) {

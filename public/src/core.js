@@ -14,6 +14,17 @@ const CFG = {
   MISSION_DURATION: 300,
   PREP_TIME: 12,            // quiet countdown before the first attack
 
+  // The assault arrives on a clock, not as fast as the compound can clear it.
+  // WAVES holds eight designed waves and the mission runs 288s after the prep
+  // countdown, so one wave every 34s walks the curve to its end and stops.
+  // Without this the director simply started the next wave whenever the last
+  // was broken, which meant a section that shot well pulled the whole assault
+  // forward and ran itself into the overtime waves — punishing the player for
+  // defending effectively. Breaking a wave early now buys a longer lull to
+  // resupply, fight fires and let the constables patch up, which is what the
+  // lull is dressed to be.
+  WAVE_CYCLE: 34,
+
   PLAYER_SPEED: 148,        // px/s — deliberately not "twitch shooter" fast
   PLAYER_HP: 150,
 
@@ -53,7 +64,12 @@ const DIFFICULTIES = {
     blurb: 'You aim and fire yourself. The section holds the compound on its own. Full score.',
     autoAim: false, autoFire: false,
     playerHp: 150, damageTaken: 1, spread: 1,
-    stationDamage: 1, maxAlive: 12, waveScale: 1,
+    // 10, not 12. The section used to be unable to see past its own sandbags
+    // and so barely fired; once it actually fights, twelve attackers on the
+    // wire at once overwhelms it and CONSTABLE fell to 2/8 held across the
+    // soak. At ten it is 6/8 for a bot that plays actively and still 3/8 for
+    // one that stands still — which is the shape this mode wants.
+    stationDamage: 1, maxAlive: 10, waveScale: 1,
     scoreMul: 1,
   },
 };

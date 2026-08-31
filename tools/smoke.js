@@ -142,13 +142,37 @@ check('weapon: fire, empty, reload, resupply', () => {
 check('RECRUIT mode aims and fires with no player input', () => {
   Game.difficulty = DIFFICULTIES.easy;
   Game.startRun();
-  for (let i = 0; i < 60 * 90; i++) {
-    if (Game.state !== 'playing') break;
-    Game.update(1 / 60); Input.endFrame();          // never touches mouse or keys
+  const P = Game.player;
+
+  // This used to simply run 90s and assert the player had fired. That worked
+  // only while the section could not shoot: attackers walked unopposed into
+  // the middle of the compound and straight into a motionless player's arc.
+  // Now that the constables hold the wire, most attackers die out at the
+  // perimeter and a player who never moves can genuinely see nothing for
+  // ninety seconds — the old assertion had become a coin flip on the spawn
+  // RNG. Park one attacker in the open in front of the player instead, so
+  // this tests the aim assist rather than the weather.
+  let target = null;
+  for (let i = 0; i < 60 * 40 && !target; i++) {
+    Game.update(1 / 60); Input.endFrame();
+    target = Game.enemies.find(e => e.alive) || null;
+  }
+  if (!target) throw new Error('no attacker spawned within 40s');
+
+  let spot = null;
+  for (const [dx, dy] of [[1,0],[0,1],[-1,0],[0,-1],[0.7,0.7],[-0.7,0.7],[0.7,-0.7],[-0.7,-0.7]]) {
+    const x = P.x + dx * 150, y = P.y + dy * 150;
+    if (World.lineOfSight(P.x, P.y, x, y)) { spot = { x, y }; break; }
+  }
+  if (!spot) throw new Error('player is boxed in — no clear line anywhere');
+
+  for (let i = 0; i < 60 * 6; i++) {
+    target.x = spot.x; target.y = spot.y; target.hp = target.maxHp;   // hold him there
+    Game.update(1 / 60); Input.endFrame();                            // never touches mouse or keys
   }
   if (Game.stats.shots === 0) throw new Error('auto-fire never fired');
   if (Game.stats.hits === 0) throw new Error('aim assist never landed a round');
-  if (Game.player.maxHp !== DIFFICULTIES.easy.playerHp) throw new Error('easy hp not applied');
+  if (P.maxHp !== DIFFICULTIES.easy.playerHp) throw new Error('easy hp not applied');
 });
 
 check('CONSTABLE mode does not fire by itself', () => {
