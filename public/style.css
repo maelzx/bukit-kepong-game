@@ -27,6 +27,19 @@ html, body {
 body { cursor: default; }
 body.in-game { cursor: none; }
 
+/* A long press on iOS runs the system text-selection gesture: the word under
+   the thumb highlights and a Copy / Look Up / Share callout slides in over the
+   game. Holding a direction on the thumbstick or leaning on the fire button is
+   exactly that gesture, so the menu appears mid-firefight. Nothing here is
+   text a player would want to copy — there are no inputs or prose to quote —
+   so selection and the callout are switched off document-wide. The tap
+   highlight is the same story: a grey flash over every button on touch. */
+html, body {
+  -webkit-user-select: none; user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
 /* 100vh on iOS is the LARGE viewport — the height the page would have if the
    browser toolbars were hidden — so a canvas sized that way hangs below the
    glass by however much the toolbar covers. The camera keeps centring the
